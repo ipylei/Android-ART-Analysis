@@ -30,6 +30,10 @@ class ArtMethod { //此处只列举和本章内容相关的成员信息
 
 		//与ArtField的 field_index_ 类似，下面这个成员变量和 Class 类如何管理它的成员函数有关。
 		//详情见下文对Class的相关介绍。
+		/*
+		【解释】
+		如果这个ArtMethod是virtual函数，则 method_index_ 是指向它的VTable中的索引。
+		*/
 		uint16_t method_index_;
 
 		//热度。函数每被调用一次，该值递增1。一旦超过某个阈值，该函数可能就需要被编译成本地方法以加快执行速度了。
@@ -153,7 +157,7 @@ class Class: public Object {
         第一项是该类所实现的接口类的Class对象
         第二项则是和第一项接口类有关的接口函数信息。笔者先用伪代码来描述IfTable中索引x对应的内容：
     
-        第一项内容：具体位置为iftable_内部数组[x+0]，元素类型为Class*，代表某个接口类
+        第一项内容：具体位置为iftable_内部数组[x+0]，元素类型为 Class*，代表某个接口类
         第二项内容：具体位置为iftable_内部数组[x+1]，元素类型为 PointArray* 。如图8-6可知，
 
     PointArray 也是一个数组。其具体内容我们下文再详述。
@@ -162,7 +166,10 @@ class Class: public Object {
     （1）类A自己所实现的接口类。
     （2）类A从父类（direct superclass）那里获取的信息。
     （3）类A从接口父类（direct super interface）那里获取的信息。
-    笔者先不介绍上面所谓的信息具体是什么，下文将对IfTable的元素构成做详细代码分析。 */
+    笔者先不介绍上面所谓的信息具体是什么，下文将对IfTable的元素构成做详细代码分析。 
+	
+	【解释】 保存了该类所直接实现或间接实现的接口信息
+	*/
     HeapReference <IfTable> iftable_;
     
     //本类的类名
@@ -172,7 +179,10 @@ class Class: public Object {
     HeapReference <Class> super_class_;
     
     /*virtual methods table。它指向一个 PointArray 数组，元素的类型为ArtMethod*。
-    这个vtable_的内容很丰富，下面的章节会详细介绍它。  */
+    这个vtable_的内容很丰富，下面的章节会详细介绍它。  
+	
+	【解释】和 iftable_ 类似，它保存了该类所有直接定义或间接定义的virtual方法信息
+	*/
     HeapReference <PointerArray> vtable_;
     
     //类的访问标志。该字段的低16位可虚拟机自行定义使用
@@ -187,9 +197,14 @@ class Class: public Object {
     /*下面这三个变量需配合使用。其中，methods_实际为 LengthPrefixedArray<ArtMethod>，代表该类自己定义的成员函数。
 	它包括类里定义的 virtual 和 direct 的成员函数，也包括从接口类中继承得到的默认函数 
 	以及所谓的 miranda 函数（下文将介绍接口类的默认实现函数以及miranda函数）。methods_中元素排列如下：
-    （1）[0,virtual_methods_offset_)为本类包含的 direct 成员函数
-    （2）[virtual_methods_offset_,copied_methods_offset_)为本类包含的virtual成员函数
-    （3）[copied_methods_offset_,...)为剩下的诸如miranda函数等内容   */
+    （1）[0,virtual_methods_offset_)                     为本类包含的 direct 成员函数
+    （2）[virtual_methods_offset_,copied_methods_offset_)为本类包含的 virtual 成员函数
+    （3）[copied_methods_offset_,...)                    为剩下的诸如 miranda 函数等内容   
+	
+	【解释】 methods_只包含本类直接定义的 direct 方法、
+										  virtual 方法、
+										  那些拷贝过来的诸如Miranda这样的方法（下文将介绍它）
+	*/
     uint64_t methods_;
     uint16_t copied_methods_offset_;
     uint16_t virtual_methods_offset_;
@@ -234,16 +249,35 @@ class Class: public Object {
    /*Embedded Imtable（内嵌Interface Method Table）,是一个固定大小的数组。
     数组元素的类型为 ImTableEntry，
 	但代码中并不存在这样的数据类型。
-    实际上，下面这个隐含成员变量的声明可用 ArtMethod* embedded_imtable_[0]来表示  */
+    实际上，下面这个隐含成员变量的声明可用 ArtMethod* embedded_imtable_[0]来表示  
+	【解释】
+	embedded_imtable_作用很明确，它只存储这个类所有 virtual 方法里那些属于接口的方法。
+	*/
     //ImTableEntry embedded_imtable_[0];
     
+	
+	
+	
+	
     /*Embedded Vtable（内嵌Virtual Table），是一个非固定大小的数组。
 	数组元素为 VTableEntry，
     但代码中也不存在这样的数据类型。
 	和上面的embedded_imtable_类似，它的声明也可用ArtMethod* embedded_vtable_[0]来表示   
-    */
+    【解释】
+	特别注意，ConcreteClass的vtable_将为nullptr。所有virtual的Java方法转移到隐含变量embedded_vtable_中了。
+	回顾上文对Class ShouldHaveEmbeddedImtAndVTable代码的介绍可知，如果一个类是可以实例化的，
+	则它的 embedded_imtable_ 和 embedded_vtable_ 隐含成员变量将存在。
+	
+	·实际上，不管是 embedded_vtable_ 还是 vtable_ ，
+	二者保存的内容（即这个类所有的virtual方法）都是一样的。
+	这里的“所有”包括该类自己定义的virtual方法，也包括来自父类、祖父类等通过继承或实现接口而得到的所有 virtual 方法。
+	*/
     //VTableEntry embedded_vtable_[0];
     
+	
+	
+	
+	
     //下面这个数组存储Class中的静态成员变量的信息
     //uint32_t fields_[0];
     

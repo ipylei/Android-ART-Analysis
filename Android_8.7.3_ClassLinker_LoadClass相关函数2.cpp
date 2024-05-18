@@ -61,8 +61,9 @@ void ClassLinker::LoadMethod(Thread* self,
 
 //8.7.3.2　LoadSuperAndInterfaces
 /*
-上一节的LoadClass中，目标类在dex文件对应的class_def里相关的信息已经提取并分别保存到代表目标类的Class对象、
-相应的ArtField和ArtMethod成员中了。
+上一节的LoadClass中，目标类在dex文件对应的class_def里相关的信息已经提取并分别保存到
+代表目标类的Class对象、相应的ArtField和ArtMethod成员中了。
+
 接下来，如果目标类有基类或实现了接口类的话，我们相应地需要把它们“找到”。
 “找到”是一个很模糊的词，它到底包含什么工作呢？来看代码
 */
@@ -94,9 +95,6 @@ bool ClassLinker::LoadSuperAndInterfaces(Handle<mirror::Class> klass,
     }
 	
 	
-	
-	
-	
     //从dex文件里找到目标类实现了哪些接口类。参考图8-7所示class_def结构体中 interfaces_off 的含义
     const DexFile::TypeList* interfaces = dex_file.GetInterfacesList(class_def);
     if (interfaces != nullptr) {
@@ -105,9 +103,7 @@ bool ClassLinker::LoadSuperAndInterfaces(Handle<mirror::Class> klass,
 		  
 			//解析这个接口类。下文将介绍ResolveType函数
 			mirror::Class* interface = ResolveType(dex_file, idx, klass.Get());
-			
 			......      
-			
 			//如果接口类找不到或者接口类不允许继承，则返回错误
 			if (interface == nullptr) {
 				DCHECK(Thread::Current()->IsExceptionPending());

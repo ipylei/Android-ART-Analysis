@@ -38,7 +38,7 @@ void ClassLinker::LoadClassMembers(Thread * self,
     //而 oat_class 描述的是Oat文件里针对这个类提供的一些信息
     {
         LinearAlloc * const allocator = GetAllocatorForClassLoader(klass->GetClassLoader());
-        //创建class_data_item迭代器
+        //创建 class_data_item 迭代器
         ClassDataItemIterator it(dex_file, class_data);
 		
 		
