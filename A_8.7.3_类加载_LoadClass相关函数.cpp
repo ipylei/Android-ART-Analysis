@@ -89,9 +89,9 @@ void ClassLinker::LoadClassMembers(Thread * self,
 			（3）[copied_methods_offset_,...)为剩下的诸如 miranda 函数等内容。
 			
 		下面代码中，先分配1和2所需要的元素空间，然后设置klass对应的成员变量，其中：
-        klass->methods_ 为AllocArtMethodArray的返回值，
-        klass->copied_methods_offset_ 为类direct和virtual方法个数之和
-        klass->virtual_methods_offset_ 为类direct方法个数   */
+        klass-> methods_ 为AllocArtMethodArray的返回值，
+        klass-> copied_methods_offset_ 为类direct和virtual方法个数之和
+        klass-> virtual_methods_offset_ 为类direct方法个数   */
         klass->SetMethodsPtr(
 				AllocArtMethodArray(self, allocator, it.NumDirectMethods() + it.NumVirtualMethods()), 
 				it.NumDirectMethods(), 
@@ -110,7 +110,6 @@ void ClassLinker::LoadClassMembers(Thread * self,
 			//【*】加载并设置到ArtMethod
             //加载ArtMethod对象，并将其和字节码关联起来。
             LoadMethod(self, dex_file, it, klass, method);
-			
             //注意，oat_class 信息只在LinkCode中用到。LinkCode留待10.1节介绍
             LinkCode(method, oat_class, class_def_method_index);
 			
@@ -118,8 +117,9 @@ void ClassLinker::LoadClassMembers(Thread * self,
             if (last_dex_method_index == it_method_index) {
                 method->SetMethodIndex(last_class_def_method_index);
             } else { 
-				//设置ArtMethod的 method_index_ ，该值其实就是这个ArtMethod位于上面klass methods_ 数组中的位置
+				//设置ArtMethod的 method_index_ ，该值其实就是这个ArtMethod位于上面 klass methods_ 数组中的位置
                 method->SetMethodIndex(class_def_method_index);
+                
                 last_dex_method_index = it_method_index;
                 last_class_def_method_index = class_def_method_index;
             }
@@ -137,8 +137,6 @@ void ClassLinker::LoadClassMembers(Thread * self,
 			//【*】加载并设置到ArtMethod
             //加载ArtMethod对象，并将其和字节码关联起来。
 			LoadMethod(self, dex_file, it, klass, method);
-			
-			DCHECK_EQ(class_def_method_index, it.NumDirectMethods() + i);
 			//注意，oat_class 信息只在LinkCode中用到。LinkCode留待10.1节介绍
 			LinkCode(method, oat_class, class_def_method_index);
         

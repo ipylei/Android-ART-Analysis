@@ -12,6 +12,9 @@ class ArtField { //此处只列举和本章内容相关的成员信息
 		uint32_t field_dex_idx_;
 
 		//offset_和 Class 如何管理它的成员变量有关，详情见下文对 Class 类中成员变量的介绍。
+        //【8.7.4.2】
+        //如果ArtField所代表的成员变量是类的静态成员变量，则下面的 offset_ 代表是该变量实际的存储空间在图8-13里Class内存布局中的起始位置。
+        //如果是非静态成员变量，则 offset_ 指向图8-13中Object内存布局里对应的位置。
 		uint32_t offset_;
 };
 
@@ -32,7 +35,10 @@ class ArtMethod { //此处只列举和本章内容相关的成员信息
 		//详情见下文对Class的相关介绍。
 		/*
 		【解释】
-		如果这个ArtMethod是virtual函数，则 method_index_ 是指向它的VTable中的索引。
+		如果这个ArtMethod 对应的是一个 static 或 direct 函数，则 method_index_ 是指向定义它的类的 methods_ 中的索引。
+        如果这个ArtMethod 是 virtual函数，则 method_index_ 是指向它的VTable中的索引。
+        注意，可能多个类的VTable都包含该ArtMethod对象（比如Object的那11个方法），
+        所以要保证这个 method_index_ 在不同VTable中都有相同的值——这也是LinkMethods中那三个函数比较复杂的原因。
 		*/
 		uint16_t method_index_;
 
@@ -41,10 +47,10 @@ class ArtMethod { //此处只列举和本章内容相关的成员信息
 
 		//成员 ptr_sized_fields_ 是一个结构体
 		struct PACKED(4)PtrSizedFields {
-			//指向 declaring_class_->dex_cache_ 的 resolved_methods_ 成员，详情需结合下文对 DexCache 的介绍。
+			//指向 declaring_class_-> dex_cache_ 的 resolved_methods_ 成员，详情需结合下文对 DexCache 的介绍。
 			ArtMethod ** dex_cache_resolved_methods_;
 
-			//指针的指针，指向 declaring_class_->dex_cache_ 的 dex_cache_resolved_types_ 成员，
+			//指针的指针，指向 declaring_class_-> dex_cache_ 的 resolved_types_ 成员，
 			//详情需结合下文对DexCache的介绍
 			GcRoot <mirror::Class>  * dex_cache_resolved_types_;
 
@@ -237,6 +243,9 @@ class Class: public Object {
     
     //下面这个变量指向一个内存地址，该地址中存储的是一个位图，
     //它和Class中用于表示引用类型的非静态成员变量的信息（ifields_）有关。
+    //【8.7.4.3】
+    //这个成员变量提供了一种快速访问类非静态、引用类型变量的方法
+    //如何从reference_instance_offsets_的位置推导出ArtField的offset_呢?
     uint32_t reference_instance_offsets_;
     
     Status status_; //类的状态
@@ -252,6 +261,8 @@ class Class: public Object {
     实际上，下面这个隐含成员变量的声明可用 ArtMethod* embedded_imtable_[0]来表示  
 	【解释】
 	embedded_imtable_作用很明确，它只存储这个类所有 virtual 方法里那些属于接口的方法。
+    显然，embedded_imtable_提供了类似快查表那样的功能。当调用某个接口方法时，可以先到embedded_imtable_里搜索该方法是否存在。
+    由于embedded_imtable_只能存64个元素，编译时可扩大它的容量，但这会增加Class类所占据的内存。
 	*/
     //ImTableEntry embedded_imtable_[0];
     

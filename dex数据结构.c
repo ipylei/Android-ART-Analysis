@@ -69,8 +69,8 @@ struct class_def{
     uint class_data_off;     //指向文件对应位置，那里将存储更细节的信息，由 class_data_item 类型来描述
     
     uint static_values_off;  //储用来初始化类的静态变量的值，静态变量如果没有显示设置初值的话，默认是0或者null。
-                             //如果有初值的话，初值信息就存储在文件static_values_off的地方，
-                             //对应的数据结构名为encoded_array_item
+                             //如果有初值的话，初值信息就存储在文件 static_values_off 的地方，
+                             //对应的数据结构名为 encoded_array_item
                              //本章不拟讨论它，读者可自行阅读参考资料[2]。
 }
 

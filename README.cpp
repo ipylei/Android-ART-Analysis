@@ -176,7 +176,7 @@ app_main.cpp->main() {
 
 
 
-//8.7.3 加载类(LoadClass)
+//【8.7.3 加载类(LoadClass)】
 //[class_linker.cc->ClassLinker::LoadClass]
 void ClassLinker::LoadClass(Thread * self,
 							const DexFile & dex_file,
@@ -228,3 +228,35 @@ void ClassLinker::LoadClass(Thread * self,
 										
 	}
 }								
+
+
+
+
+//【8.7.4 链接类 LinkClass】
+//[class_linker.cc->ClassLinker::LinkClass]
+bool ClassLinker::LinkClass(Thread* self,
+							const char* descriptor,
+							Handle<mirror::Class> klass, //待link的目标class
+							Handle<mirror::ObjectArray<mirror::Class>> interfaces,
+							MutableHandle<mirror::Class>* h_new_class_out) {
+                                
+    //对该类所包含的方法（包括它实现的接口方法、继承自父类的方法等）进行处理
+	//（更新目标类的iftable_、vtable_、相关隐含成员emedded_imf等信息）
+    if (!LinkMethods(self, klass, interfaces, imt)) { 
+		return false;
+	}
+	
+    
+    
+    //下面两个函数分别对类的成员进行处理。
+    if (!LinkInstanceFields(self, klass)) { 
+		return false;
+	}
+    size_t class_size;
+	//尤其注意 LinkStaticFields 函数，它的返回值包括 class_size，代表该类所需内存大小。
+    if (!LinkStaticFields(self, klass, &class_size)) { 
+		return false; 
+	}
+                            
+                                
+}

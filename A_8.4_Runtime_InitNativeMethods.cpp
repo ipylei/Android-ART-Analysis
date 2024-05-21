@@ -1,4 +1,4 @@
-//本节介绍Runtime的InitNativeMethods。代码如下所示。
+//本节介绍Runtime的 InitNativeMethods。代码如下所示。
 //[runtime.cc->Runtime::InitNativeMethods]
 void Runtime::InitNativeMethods() {
     Thread* self = Thread::Current();

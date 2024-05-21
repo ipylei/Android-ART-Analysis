@@ -130,8 +130,9 @@ bool ClassLinker::InitFromBootImage(std::string* error_msg) {
                         
                 return false;      
             }
-            boot_dex_files_.insert(boot_dex_files_.end(), std::make_move_iterator(dex_files.begin()), 
-                                                          std::make_move_iterator(dex_files.end())
+            boot_dex_files_.insert(boot_dex_files_.end(), 
+                                    std::make_move_iterator(dex_files.begin()), 
+                                    std::make_move_iterator(dex_files.end())
                 );
     }
         
@@ -410,7 +411,7 @@ mirror::Class* ClassLinker::FindClass(Thread* self,
         return EnsureResolved(self, descriptor, klass);
     }
 	
-    ......//其他更为复杂的情况，后续章节再详述
+    ......//其他更为复杂的情况，后续章节再详述 【8.7.8】
 	
 }
 

@@ -76,6 +76,7 @@ bool ClassLinker::LoadSuperAndInterfaces(Handle<mirror::Class> klass,
     uint16_t super_class_idx = class_def.superclass_idx_;
     //根据基类的id来解析它，返回值是代表基类的Class实例。
     //ResolveType 函数的内容将在8.7.8节中介绍
+    //【8.7.8】
     mirror::Class* super_class = ResolveType(dex_file, super_class_idx, klass.Get());
 	
     if (super_class == nullptr) { 
