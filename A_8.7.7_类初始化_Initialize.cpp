@@ -101,7 +101,7 @@ bool ClassLinker::InitializeClass(Thread* self,
         if (value_it.HasNext()) {
             for ( ; value_it.HasNext(); value_it.Next(), field_it.Next()) {
                 //找到对应的ArtField成员。下文会介绍 ResolveField 函数
-                //【8.7.8】
+				//【8.7.8】
                 ArtField* field = ResolveField(dex_file, field_it.GetMemberIndex(), dex_cache, class_loader, true);
                 //设置该ArtField的初值，内部将调用Class的SetFieldXXX相关函数，
                 //它会在Class对象中存储对应静态成员变量内容的位置（其值为ArtField的 offset_ ）上设置初值。

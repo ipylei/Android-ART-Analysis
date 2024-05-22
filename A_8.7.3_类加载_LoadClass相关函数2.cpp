@@ -59,8 +59,13 @@ void ClassLinker::LoadMethod(Thread* self,
 
 
 
-//8.7.3.2　LoadSuperAndInterfaces
+//8.7.3.2　LoadSuperAndInterfaces 
+
 /*
+DefineClass
+	LoadClass
+	LoadSuperAndInterfaces
+
 上一节的LoadClass中，目标类在dex文件对应的class_def里相关的信息已经提取并分别保存到
 代表目标类的Class对象、相应的ArtField和ArtMethod成员中了。
 

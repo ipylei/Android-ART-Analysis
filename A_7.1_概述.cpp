@@ -50,6 +50,10 @@ void AndroidRuntime::start(const char* className, const Vector<String8>& options
 
 /*它将加载ART虚拟机的核心动态库。
 从libart.so里将取出并保存三个函数的函数指针：
+	JNI_GetDefaultJavaVMInitArgs_
+	JNI_CreateJavaVM_
+	JNI_GetCreatedJavaVMs_
+	
 ·这三个函数的代码位于java_vm_ext.cc中。
 ·第二个函数JNI_CreateJavaVM用于创建Java虚拟机，所以它是最关键的。
 */
@@ -140,9 +144,12 @@ extern "C" jint JNI_CreateJavaVM(JavaVM** p_vm, JNIEnv** p_env,void* vm_args) {
     
     //加载其他关键动态库，它们的文件路径由/etc/public.libraries.txt文件描述
     android::InitializeNativeLoader();
-
-    Runtime* runtime = Runtime::Current();//获取刚创建的Runtime对象
-    bool started = runtime->Start();//②启动runtime。注意，这部分内容留待下一章介绍
+	
+	//获取刚创建的Runtime对象
+    Runtime* runtime = Runtime::Current();
+	
+	//②启动runtime。注意，这部分内容留待下一章介绍
+    bool started = runtime->Start();
     ....
     //获取JNI Env和Java VM对象
     *p_env = Thread::Current()->GetJniEnv();

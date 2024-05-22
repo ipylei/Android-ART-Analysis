@@ -44,6 +44,7 @@ mirror::Class* ClassLinker::DefineClass(Thread* self,
     klass->SetDexCache(dex_cache);
     
     //调用SetupClass
+	//【8.7.2】
     SetupClass(dex_file, dex_class_def, klass, class_loader.Get());
     
     ......
@@ -60,14 +61,17 @@ mirror::Class* ClassLinker::DefineClass(Thread* self,
     }
     
     //没有其他线程在处理目标类，接下来将由本线程处理。上文已经介绍过下面这些重要函数了
+	//【8.7.3 类加载_相关函数1】
     LoadClass(self, dex_file, dex_class_def, klass);
     
     ......
     
+	//【8.7.3 类加载_相关函数2】
     if (!LoadSuperAndInterfaces(klass, dex_file)) { return nullptr; }
     auto interfaces = hs.NewHandle<mirror::ObjectArray<mirror::Class>>(nullptr);
     MutableHandle<mirror::Class> h_new_class = hs.NewHandle<mirror::Class>(nullptr);
     
+	//【8.7.4 链接类 LinkClass】
     if (!LinkClass(self, descriptor, klass, interfaces, &h_new_class)) {...}
     
     //LinkClass成功后，返回的 h_new_class 的状态为kStatusResolved。

@@ -167,25 +167,26 @@ class MemMap {
     而用来保护这个变量的互斥锁对象作为GUARDED_BY宏的参数。
     注意，下面这行代码只是声明maps_这个变量，
     而它的定义（mem_map.cc中）也就是给maps_赋初值的地方则不受此限制。
-    其余给maps_赋值或者操作它的地方则需要用mem_maps_lock_锁来保护*/
-        static Maps* maps_ GUARDED_BY(Locks::mem_maps_lock_);
+    其余给maps_赋值或者操作它的地方则需要用mem_maps_lock_锁来保护
+	*/
+    static Maps* maps_ GUARDED_BY(Locks::mem_maps_lock_);
         
         
-    /*RQUIRES宏，它针对函数，表示调用这个函数前需要（或者不需要）某个锁来保护，
+    /*RQUIRES 宏，它针对函数，表示调用这个函数前需要（或者不需要）某个锁来保护，
         比如下面DumpMaps和DumpMapsLocked函数：
         
      （1）DumpMaps 使用REQUIRES(!Locks::mem_maps_lock_)：表示调用DumpMaps之前不要锁住mem_maps_lock_，
             DumpMaps内部会lock这个对象，并且DumpMaps退出前一定要释放mem_maps_lock_。
             
-     （2）DumpMapsLocked 
-            使用
+     （2）DumpMapsLocked 使用
             REQUIRES(Locks::mem_maps_lock_)：表示DumpMapsLocked调用前必须拿到（也就是调用者）mem_maps_lock_锁，
                 并且DumpMapsLocked内部不允许释放mem_maps_lock_锁
             RQUIRES宏表明某个函数是否需要独占某个互斥对象：
                （1）如果需要，那么函数进来前（on entry）和退出（on exit）后，这个互斥对象都不能释放。
                 注意退出后的含义，它是指该函数返回后，这个互斥对象还是被锁住的，即函数内部不会释放同步锁。
                （2）如果不需要，那么函数进来前和退出后，这个锁都不再需要。
-                    另外，REQUIRE_SHARED宏用于表示共享某个互斥对象*/
+                    另外，REQUIRE_SHARED宏用于表示共享某个互斥对象
+	*/
 
 }
 
@@ -205,8 +206,7 @@ void MemMap::DumpMaps(std::ostream& os, bool terse) {
 
 
 //mem_map.cc->使用maps_的地方
-//定义maps_的地方，这种情况下Annotalysis不会进行检查。与之类似的还有类的构造和
-//析构函数
+//定义maps_的地方，这种情况下Annotalysis不会进行检查。与之类似的还有类的构造和析构函数
 MemMap::Maps* MemMap::maps_ = nullptr;
 //其他使用
 void MemMap::Init() {

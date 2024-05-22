@@ -64,9 +64,9 @@ inline MemberOffset Class::GetFirstReferenceStaticFieldOffsetDuringLinking( size
 //[art_field.h]
 class ArtField {
     private
-    //如果ArtField所代表的成员变量是类的静态成员变量，则下面的offset_代表是该变量实际的存储空间在图8-13里Class内存布局中的起始位置。
-    //如果是非静态成员变量，则offset_指向图8-13中Object内存布局里对应的位置。
-    uint32_t offset_;
+		//如果ArtField所代表的成员变量是类的静态成员变量，则下面的offset_代表是该变量实际的存储空间在图8-13里Class内存布局中的起始位置。
+		//如果是非静态成员变量，则offset_指向图8-13中Object内存布局里对应的位置。
+		uint32_t offset_;
 };
 
 //现在可以来看 LinkFields 的代码了，虽然行数不少，但内容就不难了。

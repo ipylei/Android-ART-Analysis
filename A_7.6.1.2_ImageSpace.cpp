@@ -1,3 +1,5 @@
+//art文件将被映射到art虚拟机进程的内存里，
+//该工作是通过ImageSpace的init函数来完成的，其返回结果是一个ImageSpace对象
 //[image_space.cc->ImageSpace::Init]
 ImageSpace* ImageSpace::Init(const char* image_filename, 
                             const char* image_location, 
@@ -12,10 +14,10 @@ ImageSpace* ImageSpace::Init(const char* image_filename,
      （2）image_location：取值为诸如/system/framework/boot.art这样的路径。
                     以x86平台和boot.art文件为例。首先，编译boot镜像时，
                     core-oj.jar所得到的boot.art文件真实路径其实是/system/framework/x86/boot.art。
-                    出于简化使用的考虑，凡是要用到这个路径的地方只需要使用/system/framework/boot.art即可，
+                    (*)出于简化使用的考虑，凡是要用到这个路径的地方只需要使用/system/framework/boot.art即可，
                     程序内部会将CPU平台名（比如x86）插入到framework后。
-                    所以，这也是上面image_location取值中不含"x86"的原因。
-                    其次，art虚拟机并不会直接使用framework目录下的boot.art文件，
+                    所以，这也是上面 image_location 取值中不含"x86"的原因。
+                    其次，art虚拟机并不会直接使用 framework 目录下的boot.art文件，
                     而是会先将该文件拷贝（某些情况下可能还会做一些特殊处理以加强安全性）
                     到/data/dalvik-cache对应目录下。
                     dalvik-cache 下的boot.art文件名将变成system@framework@boot.art，
@@ -53,14 +55,14 @@ ImageSpace* ImageSpace::Init(const char* image_filename,
         //oat_file为该art文件对应的oat文件。此段代码用于检查oat文件的校验和与
         //art文件ImageHeader里保存的oat文件校验和字段（图7-16中未展示该字段）是否相同。
     }
-    //取出ImageHeader的section_数组中最后一个类型（kSectionImageBitmap）所对应的ImageSection对象。
+    //取出ImageHeader的 section_ 数组中最后一个类型（kSectionImageBitmap）所对应的ImageSection对象。
     //这个section里存储的是位图空间的位置和大小。
     const auto& bitmap_section = image_header->GetImageSection(ImageHeader::kSectionImageBitmap);
 
-    //如图7-16所示，kSectionImageBitmap所在的section的偏移量需要按内存页大小对齐
+    //如图7-16所示，kSectionImageBitmap 所在的section的偏移量需要按内存页大小对齐
     const size_t image_bitmap_offset = RoundUp(sizeof(ImageHeader) + image_header->GetDataSize(),kPageSize);
 
-    //计算image bitmap section的末尾位置
+    //计算 image bitmap_section 的末尾位置
     const size_t end_of_bitmap = image_bitmap_offset + bitmap_section.Size();
     if (end_of_bitmap != image_file_size) {
         .......//检查bitmap的末尾处是不是等于整个art文件的大小
@@ -83,26 +85,35 @@ ImageSpace* ImageSpace::Init(const char* image_filename,
             //将art文件映射到zygote进程的虚拟内存空间。其中，address取值为ImageHeader里的image_begin_，
             //从文件的0处开始映射，映射的大小为image_size_，映射空间支持可读和可写
             map.reset(MemMap::MapFileAtAddress(address,
-                        image_header->GetImageSize(),PROT_READ | PROT_WRITE, MAP_PRIVATE, file->Fd(),0, true,false, image_filename, out_error_msg));
+												image_header->GetImageSize(),
+												PROT_READ | PROT_WRITE, 
+												MAP_PRIVATE, 
+												file->Fd(),0, true,false, 
+												image_filename, 
+												out_error_msg));
         } else {  
             .....  /*对压缩存储模式的处理 */ 
         }
-        if (map != nullptr) { break;}//map不为空，跳出循环
+        if (map != nullptr) { 
+			//map不为空，跳出循环
+			break;
+		}
     }
     
-    //下面的语句将检查art文件映射内存的头部是否为ImageHeader
+    //下面的语句将检查art文件映射内存的头部是否为 ImageHeader
     DCHECK_EQ(0, memcmp(image_header, map->Begin(), sizeof(ImageHeader)));
     
-    /*单独为art文件里image bitmap section所描述的空间进行内存映射。
+    /*单独为art文件里image bitmap_section 所描述的空间进行内存映射。
     期望的内存映射起始位置由系统指定(即指定nullptr)，
-    它在文件里的起始位置为image_bitmap_offset，映射空间有section的Size函数返回。
+    它在文件里的起始位置为 image_bitmap_offset，映射空间有section的Size函数返回。
     同时，请读者注意这段映射内存为只读空间。*/
     std::unique_ptr<MemMap> image_bitmap_map(MemMap::MapFileAtAddress(nullptr,bitmap_section.Size(),PROT_READ, MAP_PRIVATE, file->Fd(),image_bitmap_offset,false,false,image_filename, error_msg));
     
     /*上述代码中，我们得到了两个 MemMap 对象，
         一个是art文件里除最后一个Section之外其余部分所映射得到的MemMap对象，
         另外一个是最后一个image bitmap section部分映射得到的MemMap对象。
-        下面的代码中将把这两个MemMap对象整合到一起*/
+        下面的代码中将把这两个MemMap对象整合到一起
+	*/
     image_header = reinterpret_cast<ImageHeader*>(map->Begin());
     const uint32_t bitmap_index = bitmap_index_.FetchAndAddSequentiallyConsistent(1);
     std::string bitmap_name(StringPrintf("imagespace %s live-bitmap %u", image_filename,   bitmap_index));
@@ -113,7 +124,7 @@ ImageSpace* ImageSpace::Init(const char* image_filename,
     //该section所覆盖的位置。
     uint8_t* const image_end = map->Begin() + image_objects.End();
    
-   /*创建一个ContinuousSpaceBitmap对象。上文曾介绍过ContinuousSpaceBitmap,
+   /*创建一个 ContinuousSpaceBitmap 对象。上文曾介绍过ContinuousSpaceBitmap,
     它其实是SpaceBitmap按8字节进行实例化得到的类。其本质是一个SpaceBitmap。
     回顾我们对HeapBitmap的介绍可知，它包括的信息有：
      （1）位图对象本身所占据的内容：根据下面的代码，这段内存就放在image_bitmap_map中
@@ -148,7 +159,7 @@ ImageSpace* ImageSpace::Init(const char* image_filename,
             }
         }
 		
-        /*创建一个ImageSpace对象，其构造参数如下：
+        /*创建一个 ImageSpace 对象，其构造参数如下：
           map：代表art文件加载到内存里的MemMap对象。
           bimap：代表art文件中最后一个section对应的位图对象。
           

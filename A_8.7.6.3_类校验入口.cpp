@@ -101,7 +101,7 @@ void ClassLinker::VerifyClass(Thread* self, Handle<mirror::Class> klass,
     //没有 预校验 的处理
     if (!preverified) {            
         Runtime* runtime = Runtime::Current();
-        //调用MethodVerifier VerifyClass来完成具体的校验工作
+        //调用MethodVerifier::VerifyClass来完成具体的校验工作
         verifier_failure = verifier::MethodVerifier::VerifyClass(self, 
                                                                  klass.Get(), 
                                                                  runtime->GetCompilerCallbacks(),

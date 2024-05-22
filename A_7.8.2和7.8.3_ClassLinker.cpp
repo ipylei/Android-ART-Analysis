@@ -184,8 +184,7 @@ inline mirror::Object* ImageHeader::GetImageRoot(ImageRoot image_root) const {
 
 //AddImageSpace内容比较多，针对 app image 和 boot image 还有不同的处理。本节仅先考虑boot image的情况。
 //[class_linker.cc->ClassLinker::AddImageSpace]
-bool ClassLinker::AddImageSpace(
-								gc::space::ImageSpace* space,
+bool ClassLinker::AddImageSpace(gc::space::ImageSpace* space,
 								Handle<mirror::ClassLoader> class_loader,             //它表示传入一个空值ClassLoader对象（等同于nullptr）
 								jobjectArray dex_elements,                            //nullptr
 								const char* dex_location,                             //nullptr
@@ -244,7 +243,7 @@ bool ClassLinker::AddImageSpace(
     ClassTable* class_table = nullptr;
     {
         WriterMutexLock mu(self, *Locks::classlinker_classes_lock_);
-        /*上文曾说过，每一个ClassLoader对象对应有一个 class_table_ 成员。
+        /*上文曾说过，每一个 ClassLoader 对象对应有一个 class_table_ 成员。
         下面将判断 ClassLoader 的这个ClassTable对象是否存在，如果不存在，
         则创建一个ClassTable对象并将其与ClassLoader对象关联。
         不过，如果下面这个函数的参数为空（对本例而言，class_loader.Get就是返回nullptr），
@@ -265,9 +264,7 @@ bool ClassLinker::AddImageSpace(
         const uint64_t start_time2 = NanoTime();
         size_t read_count = 0;
         //注意下面这行代码，调用ClassSet的构造函数
-        temp_set = ClassTable::ClassSet(space->Begin() + class_table_section.Offset(),
-                                        false, 
-                                        &read_count);
+        temp_set = ClassTable::ClassSet(space->Begin() + class_table_section.Offset(), false, &read_count);
         if (!app_image) {
             dex_cache_boot_image_class_lookup_required_ = false;
         }
@@ -291,7 +288,7 @@ bool ClassLinker::AddImageSpace(
     该数组的第二个元素又是一个数组（ObjectArray<Class>）。
     它包含了37个基本类（由枚举值kJavaLangClass、kJavaLangString等标示）的类信息（由对应的mirror::Class对象描述）。
 
-·但是Java基础类（严格意义上来说，是ART虚拟机boot class，
+·但是Java基础类（严格意义上来说，是ART虚拟机 boot class，
     包括jdk相关类以及android所需要的基础类。读者可回顾图7-15）肯定不止37个（下文有笔者测试时得到的信息），
     这些其他的类信息则存储在ImageHeader的kSectionClassTable区域里，
     它包含了所有boot镜像文件里所加载的类信息。
@@ -458,7 +455,10 @@ mirror::Class* ClassLinker::LookupClass(Thread* self,
 
 
 
-
+...
+...
+...
+...
 
 
 

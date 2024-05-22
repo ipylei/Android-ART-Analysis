@@ -1,7 +1,7 @@
 //8.7.8.1　Resolve相关函数
 
 
-//8.7.8.1.1　ResolveType  【寻找目标类】
+//8.7.8.1.1　ResolveType  【寻找类，并保存到DexCache对象中】
 //[class_linker.h->ClassLinker::ResolveType]
 mirror::Class* ClassLinker::ResolveType(const DexFile& dex_file,
                                         uint16_t type_idx,
@@ -53,18 +53,18 @@ mirror::Class* ClassLinker::ResolveType(const DexFile& dex_file,
 
 
 
-//8.7.8.1.2 ResolveMethod 【寻找目标方法】
+//8.7.8.1.2 ResolveMethod 【寻找目标方法，并保存到DexCache对象中】
 //[class_linker.h->ClassLinker::ResolveMethod]
 ArtMethod* ClassLinker::ResolveMethod(const DexFile& dex_file,
                                      uint32_t method_idx, 
                                      Handle<mirror::DexCache> dex_cache,
                                      Handle<mirror::ClassLoader> class_loader, 
                                      ArtMethod* referrer,
-                                     InvokeType type)
+                                     InvokeType type);
 
 //[class_linker.cc->ClassLinker::ResolveMethod]
 template <ClassLinker::ResolveMode kResolveMode>
-ArtMethod* ClassLinker::ResolveMethod((const DexFile& dex_file,
+ArtMethod* ClassLinker::ResolveMethod(const DexFile& dex_file,
                                      uint32_t method_idx, 
                                      Handle<mirror::DexCache> dex_cache,
                                      Handle<mirror::ClassLoader> class_loader, 
@@ -144,6 +144,7 @@ ArtMethod* ClassLinker::ResolveMethod((const DexFile& dex_file,
         ....../*其他处理 */ 
     }
 }
+
                                      
                                      
                                      
@@ -177,8 +178,8 @@ mirror::String* ClassLinker::ResolveString(const DexFile& dex_file,
 
 
 
-//8.7.8.1.4 ResolveField
-//最后来看一下ResolveField，它也比较简单。
+//8.7.8.1.4 ResolveField 【寻找成员，并保存到DexCache对象中】
+//最后来看一下ResolveField，它也比较简单。 
 //[class_linker.cc->ClassLinker::ResolveField]
 ArtField* ClassLinker::ResolveField(const DexFile& dex_file,
                                     uint32_t field_idx,Handle<mirror::DexCache> dex_cache,
@@ -229,6 +230,7 @@ mirror::Class* ClassLinker::FindClass(Thread* self,
     const size_t hash = ComputeModifiedUtf8Hash(descriptor);
     
     //从ClassLoader对应的ClassTable中根据hash值搜索目标类
+	//【A_7.8.2和87.8.3】
     mirror::Class* klass = LookupClass(self, descriptor, hash, class_loader.Get());
     
     //如果目标类已经存在，则确保它的状态大于或等于kStatusResoved。
@@ -244,7 +246,7 @@ mirror::Class* ClassLinker::FindClass(Thread* self,
         /*对bootstrap类而言，它们是由虚拟机加载的，所以没有对应的ClassLoader。
           下面的 FindInClassPath 函数返回的 ClassPathEntry 是类型别名，其定义如下：
           typedef pair<const DexFile*,const DexFile::ClassDef*> ClassPathEntry
-          FindInClassPath 将从boot class path里对应的文件中找到目标类所在的Dex文件和对应的ClassDef信息，
+          FindInClassPath 将从 boot_class_path 里对应的文件中找到目标类所在的Dex文件和对应的ClassDef信息，
           然后调用 DefineClass 来加载目标类  */
         ClassPathEntry pair = FindInClassPath(descriptor, hash, boot_class_path_);
         if (pair.second != nullptr) {      

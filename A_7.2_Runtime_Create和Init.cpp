@@ -48,7 +48,8 @@ bool Runtime::Init(RuntimeArgumentMap&& runtime_options_in) {
 
     Thread::SetSensitiveThreadHook(runtime_options.GetOrDefault(Opt::HookIsSensitiveThread));
     
-    //关键模块之Monitor：和Java中的monitor有关，用于实现线程同步的模块。其详情见本书第12章的内容
+    //关键模块之Monitor：和Java中的monitor有关，用于实现线程同步的模块。
+	//其详情见本书第12章的内容
     Monitor::Init(runtime_options.GetOrDefault(Opt::LockProfThreshold));
     
     /*从runtime_options中提取参数。Opt是 RuntimeArgumentMap 的别名，
@@ -85,7 +86,7 @@ bool Runtime::Init(RuntimeArgumentMap&& runtime_options_in) {
     thread_list_ = new ThreadList;
     intern_table_ = new InternTable;
     
-    .....//从runtime_options中获取控制参数
+    .....//从 runtime_options 中获取控制参数
 
 
 

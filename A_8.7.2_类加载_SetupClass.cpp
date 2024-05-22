@@ -1,4 +1,5 @@
 //[class_linker.h->ClassLinker::SetupClass]
+//这个函数将把类的状态从kStatusNotReady切换为kStatusIdx
 void SetupClass(const DexFile& dex_file,
 				const DexFile::ClassDef& dex_class_def,
 				Handle<mirror::Class> klass, 
