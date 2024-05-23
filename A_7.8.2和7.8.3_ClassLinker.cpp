@@ -353,7 +353,7 @@ void ClassLinker::FinishInit(Thread* self) {
     mirror::Class* java_lang_ref_Reference = GetClassRoot(kJavaLangRefReference);
     
     //class_roots_只保存了37个基础类的class对象，其他boot class则需要通过
-    //FindSystemClass函数来寻找。这个函数也是非常重要的函数，下文将简单介绍它。
+    //FindSystemClass 函数来寻找。这个函数也是非常重要的函数，下文将简单介绍它。
     mirror::Class* java_lang_ref_FinalizerReference = FindSystemClass(self, "Ljava/lang/ref/FinalizerReference;");
 
     //从类信息里取出代表成员变量信息的ArtField对象。
@@ -404,6 +404,7 @@ mirror::Class* ClassLinker::FindClass(Thread* self,
     const size_t hash = ComputeModifiedUtf8Hash(descriptor);
     //从class_loader对应的 ClassTable 中查找指定Class。如果class_loader为空，则从 boot_class_table_ 中寻找。
     mirror::Class* klass = LookupClass(self, descriptor, hash, class_loader.Get());
+    
     if (klass != nullptr) {//确保这个类已经完成解析等相关工作
         return EnsureResolved(self, descriptor, klass);
     }

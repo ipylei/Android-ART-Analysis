@@ -5,9 +5,9 @@ void Runtime::InitNativeMethods() {
     JNIEnv* env = self->GetJniEnv();
     
     //很多个初始化函数，其实就是缓存一些信息以及注册一些native函数
-    JniConstants::init(env);   //8.4.1
-    RegisterRuntimeNativeMethods(env);  //8.4.2
-    WellKnownClasses::Init(env);  //8.4.3
+    JniConstants::init(env);            //【8.4.1】
+    RegisterRuntimeNativeMethods(env);  //【8.4.2】
+    WellKnownClasses::Init(env);        //【8.4.3】
     
     {
         std::string error_msg;

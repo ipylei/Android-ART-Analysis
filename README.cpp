@@ -123,7 +123,7 @@ app_main.cpp->main() {
                                 class_linker_ = new ClassLinker(intern_table_);
                                 if (GetHeap()->HasBootImageSpace()) {
                                     //从oat镜像文件中初始化class linker，也就是从oat文件中获取类等信息。
-                                    //【重点!】
+                                    //【7.8.2和7.8.3 重点!】
                                     bool result = class_linker_->InitFromBootImage(&error_msg);
                                 }
                                 
@@ -162,13 +162,23 @@ app_main.cpp->main() {
                         InitThreadGroups(self);   //缓存知名类（well known class）java.lang.ThreadGroup中的 
                                                   //mainThreadGroup 和 systemThreadGroup 这两个成员变量。
 												  
-                        Thread::FinishStartup();  //完成Thread类的启动工作
+                        Thread::FinishStartup(){  //完成Thread类的启动工作
+                            //简单点说，ART虚拟机执行到这个地方的时候，代表主线程的操作系统线程已经创建好了，
+                            //但Java层里的主线程Thread示例还未准备好。而这个准备工作就由CreatePeer来完成。
+                            Thread::Current()->CreatePeer("main", false, runtime->GetMainThreadGroup());
+                            
+                            //调用ClassLinker的RunRootClinits，即执行 class_root 里相关类的初始化函数，也就是执行它们的"<clinit>"函数（如果有的话）。
+                            //注：class_root 在 【7.8.2和7.8.3】 class_linker_->InitFromBootImage中初始化了
+                            Runtime::Current()->GetClassLinker()->RunRootClinits();
+                        }
+                        
                         
                         //④创建系统类加载器（system class loader），返回值存储到成员变量 system_class_loader_ 里
                         //【章节8.6】
                         system_class_loader_ = CreateSystemClassLoader(this);
                         
                         // 启动虚拟机里的daemon线程，本章将它与第③个关键点一起介绍
+                        // 将启动（start）HeapTaskDaemon等四个派生类的实例。当然，每个实例都单独运行在一个线程中
                         //【章节8.5】
                         StartDaemonThreads();  //启动虚拟机里的daemon线程。
                         
@@ -202,31 +212,54 @@ ClassLoader //含有loadClass(String name)函数
 public Class<?>  ClassLoader::loadClass(String name){
 	//return loadClass(name, false);
 	protected Class<?> ClassLoader::loadClass(String name, boolean resolve){
+        
 		//c = findClass(name);
-		protected Class<?> BaseDexClassLoader::findClass(String name) throws ClassNotFoundException {
+        //【java/dalvik/system/BaseDexClassLoader.java】
+		protected Class<?> BaseDexClassLoader::findClass(String name) throws ClassNotFoundException { 
+        
 			// Class c = pathList.findClass(name, suppressedExceptions);
-			public Class DexPathList::findClass(String name, List<Throwable> suppressed) {
+			//【java/dalvik/system/DexPathList.java】
+            public Class DexPathList::findClass(String name, List<Throwable> suppressed) {
+                
 				//Class clazz = dex.loadClassBinaryName(name, definingContext, suppressed);
 				public Class DexFile::loadClassBinaryName(String name, ClassLoader loader, List<Throwable> suppressed) {
-					//return defineClass(name, loader, mCookie, this, suppressed);
+                    
+					//defineClass(name, loader, mCookie, this, suppressed);    其中:mCookie = openDexFile(fileName, null, 0, loader, elements);
+                        //【*】openDexFile > DexFile_openDexFileNative >  runtime->GetOatFileManager().OpenDexFilesFromOat() 即从oat文件中找到指定的dex文件
+                    //【java/dalvik/system/DexFile.java】
 					private static Class DexFile::defineClass(String name, ClassLoader loader, Object cookie,  DexFile dexFile, List<Throwable> suppressed) {
-						//result = defineClassNative(name, loader, cookie, dexFile);
+						
+                        //result = defineClassNative(name, loader, cookie, dexFile);
 						//private static native Class DexFile::defineClassNative(String name, ClassLoader loader, Object cookie, DexFile dexFile)
-						//dalvik_system_DexFile.cc
+						//【dalvik_system_DexFile.cc】
 						static jclass DexFile_defineClassNative(JNIEnv* env,
 															  jclass,
 															  jstring javaName,
 															  jobject javaLoader,
 															  jobject cookie,
 															  jobject dexFile) {
-																  
+                                                                  
+                            ClassLinker* class_linker = Runtime::Current()->GetClassLinker();                                      
+                            class_linker->RegisterDexFile(*dex_file, class_loader.Get()){
+                                ClassTable* table;
+                                //给classLoader对象创建一个classTable对象
+                                table = InsertClassTableForClassLoader(class_loader);
+                                //将DexCache对象存入ClassTable的strong_roots_ 中 (std::vector<GcRoot<mirror::Object>>)
+                                table->InsertStrongRoot(h_dex_cache.Get());
+                            }                                
+                                                                  
+                            //【8.7.5 类加载入口】                                                
 							mirror::Class* result = class_linker->DefineClass(soa.Self(),
 																			  descriptor.c_str(),
 																			  hash,
 																			  class_loader,
 																			  *dex_file,
-																			  *dex_class_def);									  
-							}
+																			  *dex_class_def);	
+
+
+                            class_linker->InsertDexFileInToClassLoader(soa.Decode<mirror::Object*>(dexFile), class_loader.Get());                                                                            
+                            
+                        }
 					}
 				}
 			}
@@ -234,6 +267,8 @@ public Class<?>  ClassLoader::loadClass(String name){
 	}
 }
 
+
+//【8.7.5 类加载入口】
 mirror::Class* ClassLinker::DefineClass(Thread* self,
                                         const char* descriptor,
                                         size_t hash,
@@ -241,14 +276,22 @@ mirror::Class* ClassLinker::DefineClass(Thread* self,
                                         const DexFile& dex_file, 
                                         const DexFile::ClassDef& dex_class_def) {
     
+    //注册DexFile对象，包含如下操作：
+    //给classLoader对象创建一个classTable对象
+    //将DexCache对象存入ClassTable的 strong_roots_ 中 (std::vector<GcRoot<mirror::Object>>)
+    mirror::DexCache* dex_cache = RegisterDexFile(dex_file, class_loader.Get());
+    
     //这个函数将把类的状态从kStatusNotReady切换为kStatusIdx
-	//【8.7.2】  Status：kStatusIdx
+	//【8.7.2】  【Status】：kStatusIdx
 	ClassLinker::SetupClass(dex_file, dex_class_def, klass, class_loader.Get());
 
-
+    
+    //插入ClassLoader对应的ClassTable的classes_中 (std::vector<ClassSet> classes_ GUARDED_BY(lock_);)
+    //注意，不同的线程可以同时调用DefineClass来加载同一个类。这种线程同步直接的关系要处理好。
+    mirror::Class* existing = InsertClass(descriptor, klass.Get(), hash);
 	
 	//[class_linker.cc->ClassLinker::LoadClass]
-	//【8.7.3 类加载_相关函数1】 Status：kStatusLoaded
+	//【8.7.3 类加载_相关函数1】 【Status】：kStatusLoaded
 	void ClassLinker::LoadClass(Thread * self,
 								const DexFile & dex_file,
 								const DexFile::ClassDef & dex_class_def,
@@ -257,15 +300,15 @@ mirror::Class* ClassLinker::DefineClass(Thread* self,
 
 		//LoadClassMembers(self, dex_file, class_data, klass, nullptr);
 		void ClassLinker::LoadClassMembers(Thread * self,
-										const DexFile & dex_file,
-										const uint8_t * class_data,
-										Handle < mirror::Class > klass,
-										const OatFile::OatClass * oat_class) {
+                                            const DexFile & dex_file,
+                                            const uint8_t * class_data,
+                                            Handle < mirror::Class > klass,
+                                            const OatFile::OatClass * oat_class) {
 											
 											
 			//遍历 class_data_item 中的静态成员变量数组，然后填充信息到 sfields 数组里
 			 for (; it.HasNextStaticField(); it.Next()) {
-				 LoadField(it, klass, &sfields->At(num_sfields));
+				LoadField(it, klass, &sfields->At(num_sfields));
 			}	
 			 
 			//遍历 class_data_item 中的非静态成员变量数组，然后填充信息到 ifields 数组里
@@ -303,7 +346,7 @@ mirror::Class* ClassLinker::DefineClass(Thread* self,
 	
 	
 	//接下来，如果目标类有基类或实现了接口类的话，我们相应地需要把它们“找到”
-	//【8.7.3 类加载_相关函数2】 Status：kStatusLoaded
+	//【8.7.3 类加载_相关函数2】 【Status】：kStatusLoaded
 	bool ClassLinker::LoadSuperAndInterfaces(Handle<mirror::Class> klass,
 										const DexFile& dex_file) {
 		
@@ -312,24 +355,34 @@ mirror::Class* ClassLinker::DefineClass(Thread* self,
 		//mirror::Class* super_class = ResolveType(dex_file, super_class_idx, klass.Get());
 		//【8.7.8_ClassLinker中其他常用函数】
 		mirror::Class* ClassLinker::ResolveType(const DexFile& dex_file,
-                                        uint16_t type_idx,
-                                        Handle<mirror::DexCache> dex_cache,
-                                        Handle<mirror::ClassLoader> class_loader){	
+                                                uint16_t type_idx,
+                                                Handle<mirror::DexCache> dex_cache,
+                                                Handle<mirror::ClassLoader> class_loader){	
 										
 			//resolved = FindClass(self, descriptor, class_loader);
 			//【7.8.2和7.8.3  |  8.7.8_ClassLinker中其他常用函数】
 			mirror::Class* ClassLinker::FindClass(Thread* self,
-                                      const char* descriptor, 
-                                      Handle<mirror::ClassLoader> class_loader) {
+                                                  const char* descriptor, 
+                                                  Handle<mirror::ClassLoader> class_loader) {
 				//从ClassLoader对应的ClassTable中根据hash值搜索目标类						  
 				//mirror::Class* klass = LookupClass(self, descriptor, hash, class_loader.Get());
 				//【7.8.2和7.8.3】
 				mirror::Class* ClassLinker::LookupClass(Thread* self,
-                                        const char* descriptor,
-                                        size_t hash,
-                                        mirror::ClassLoader* class_loader) {
-											
-					mirror::Class* result = class_table->Lookup(descriptor, hash);
+                                                        const char* descriptor,
+                                                        size_t hash,
+                                                        mirror::ClassLoader* class_loader) {
+                    //【A_7.8.1.4_ClassTable和ClassSet】
+                    //mirror::Class* result = class_table->Lookup(descriptor, hash)
+                    mirror::Class* ClassTable::Lookup(const char* descriptor, size_t hash){
+                        //遍历所有的ClassSet
+                        for (ClassSet& class_set : classes_) {
+                            auto it = class_set.FindWithHash(descriptor, hash);
+                            if (it != class_set.end()) {
+                                return it->Read();
+                            }
+                        }
+                        return nullptr;
+                    }
 					if (result != nullptr) {
 						return result;
 					}
@@ -337,7 +390,10 @@ mirror::Class* ClassLinker::DefineClass(Thread* self,
 					// Lookup failed but need to search dex_caches_.
 					mirror::Class* result = LookupClassFromBootImage(descriptor);					
 					if (result != nullptr) {
-						result = InsertClass(descriptor, result, hash);
+                        //result = InsertClass(descriptor, result, hash){
+                        mirror::Class* ClassLinker::InsertClass(const char* descriptor, mirror::Class* klass, size_t hash){
+                            class_table->InsertWithHash(klass, hash);
+                        }
 					 }
 										
 				}
@@ -350,7 +406,7 @@ mirror::Class* ClassLinker::DefineClass(Thread* self,
 											
 											
 											
-    //【8.7.4 链接类 LinkClass】 Status：kStatusResolving\kStatusResolved\kStatusRetired
+    //【8.7.4 链接类 LinkClass】 【Status】：kStatusResolving\kStatusResolved\kStatusRetired
 	//[class_linker.cc->ClassLinker::LinkClass]
 	//if (!LinkClass(self, descriptor, klass, interfaces, &h_new_class))
 	bool ClassLinker::LinkClass(Thread* self,
@@ -417,6 +473,15 @@ bool ClassLinker::InitializeClass(Thread* self,
 																	...) {
 			}
 		}
+        
+        ResolveClassExceptionHandlerTypes(klass){
+            //【8.7.8_ClassLinker中其他常用函数】
+            ResolveType()
+        }
 		
 	}
+    
+    
+    //【8.7.8_ClassLinker中其他常用函数】
+    ArtField* field = ResolveField()
 }

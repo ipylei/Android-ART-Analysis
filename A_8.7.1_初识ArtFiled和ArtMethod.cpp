@@ -14,7 +14,7 @@ class ArtField { //此处只列举和本章内容相关的成员信息
 		//offset_和 Class 如何管理它的成员变量有关，详情见下文对 Class 类中成员变量的介绍。
         //【8.7.4.2】
         //如果ArtField所代表的成员变量是类的静态成员变量，则下面的 offset_ 代表是该变量实际的存储空间在图8-13里Class内存布局中的起始位置。
-        //如果是非静态成员变量，则 offset_ 指向图8-13中Object内存布局里对应的位置。
+        //如果是非静态成员变量(即实例属性)，则 offset_ 指向图8-13中Object内存布局里对应的位置。
 		uint32_t offset_;
 };
 
@@ -219,11 +219,11 @@ class Class: public Object {
 	
 	
 	
-    uint32_t class_flags_; //虚拟机内部使用
-    uint32_t class_size_; //当分配一个类对象时，用于说明这个类对象所需的内存大小
-    pid_t clinit_thread_id_; //代表执行该类初始化函数的线程ID
+    uint32_t class_flags_;      //虚拟机内部使用
+    uint32_t class_size_;       //当分配一个类对象时，用于说明这个类对象所需的内存大小
+    pid_t clinit_thread_id_;    //代表执行该类初始化函数的线程ID
     int32_t dex_class_def_idx_; //本类在dex文件中 class_defs 数组对应元素的索引
-    int32_t dex_type_idx_; //本类在dex文件里type_ids中的索引
+    int32_t dex_type_idx_;      //本类在dex文件里type_ids中的索引
     
     //下面两个成员变量表示本类定义的引用类型的非静态和静态成员变量的个数
     uint32_t num_reference_instance_fields_;

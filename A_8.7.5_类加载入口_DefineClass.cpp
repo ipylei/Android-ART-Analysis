@@ -9,12 +9,14 @@ mirror::Class* ClassLinker::DefineClass(Thread* self,
                 
     /*注意这个函数的参数和返回值，其中，输入参数：
     
-    descriptor：目标类的字符串描述。这里请读者注意，在JLS规范中，类名描述规则和我们日常
-    编码时所看到的诸如"java.lang.Class"这样的类名一样。而在JVM规范中，则使用诸如"Ljava/lang/Class;"这样的类名描述。
-    从JLS类名到JVM类名的转换可由runtime/utils.cc的 DotToDescriptor(const char* class_name)函数来完成。
-    ART虚拟机内部使用JVM类名居多。
+    descriptor：目标类的字符串描述。这里请读者注意，
+        在JLS规范中，类名描述规则和我们日常编码时所看到的诸如"java.lang.Class"这样的类名一样。
+        而在JVM规范中，则使用诸如"Ljava/lang/Class;"这样的类名描述。
+        从JLS类名到JVM类名的转换可由runtime/utils.cc的 DotToDescriptor(const char* class_name)函数来完成。
+        ART虚拟机内部使用JVM类名居多。
     dex_file：该类所在的dex文件对象。
     dex_class_def：目标类在dex文件中对应的ClassDef信息。
+    
     该函数的输出参数为代表目标类的Class对象    */
     
     StackHandleScope<3> hs(self);
@@ -38,11 +40,14 @@ mirror::Class* ClassLinker::DefineClass(Thread* self,
     
     ......
     
-    //注册DexFile对象
+    //注册DexFile对象，包含如下操作：
+    //给classLoader对象创建一个classTable对象
+    //将DexCache对象存入ClassTable的strong_roots_ 中 (std::vector<GcRoot<mirror::Object>>)
     mirror::DexCache* dex_cache = RegisterDexFile(dex_file, class_loader.Get());
-    ......
-    klass->SetDexCache(dex_cache);
     
+    ......
+    
+    klass->SetDexCache(dex_cache);
     //调用SetupClass
 	//【8.7.2】
     SetupClass(dex_file, dex_class_def, klass, class_loader.Get());
@@ -52,8 +57,10 @@ mirror::Class* ClassLinker::DefineClass(Thread* self,
     ObjectLock<mirror::Class> lock(self, klass);
     klass->SetClinitThreadId(self->GetTid());
     
-    //插入ClassLoader对应的ClassTable中。注意，不同的线程可以同时调用DefineClass来加载同一个类。这种线程同步直接的关系要处理好。
+    //插入ClassLoader对应的ClassTable的classes_中 (std::vector<ClassSet> classes_ GUARDED_BY(lock_);)
+    //注意，不同的线程可以同时调用DefineClass来加载同一个类。这种线程同步直接的关系要处理好。
     mirror::Class* existing = InsertClass(descriptor, klass.Get(), hash);
+    
     if (existing != nullptr) {
         //existing不为空，则表示有别的线程已经在加载目标类了，下面的 EnsureResolved
         //函数将进入等待状态，直到该目标类状态变为超过 kStatusResolved 或 出错。

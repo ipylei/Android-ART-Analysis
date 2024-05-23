@@ -12,7 +12,7 @@ mirror::Class* ClassLinker::ResolveType(const DexFile& dex_file,
 //[class_linker.cc->ClassLinker::ResolveType]
 mirror::Class* ClassLinker::ResolveType(const DexFile& dex_file,
                                        uint16_t type_idx,......) {
-    /*dex_cache的类型为 mirror::DexCache，这里直接回顾本章上文对DexCache类的介绍。
+    /*dex_cache 的类型为 mirror::DexCache，这里直接回顾本章上文对DexCache类的介绍。
       它包含如下几个关键成员变量：
       （1）dex_file_(类型为uint64_t)：实际为DexFile*，指向该对象关联的那个Dex文件。
       （2）resolved_fields_(uint64_t)：实际为ArtField*，指向ArtField数组，成员的数据类
@@ -293,7 +293,7 @@ mirror::Class* ClassLinker::FindClass(Thread* self,
 mirror::Class* ClassLinker::FindPrimitiveClass(char type) {
     switch (type) {
         case 'B': 
-            ///从 class_roots_ 中找到对应的类。7.8.3节曾介绍过它
+            //从 class_roots_ 中找到对应的类。7.8.3节曾介绍过它
             return GetClassRoot(kPrimitiveByte);
             
         ......            //其他基础数据类型的处理

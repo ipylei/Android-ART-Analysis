@@ -189,7 +189,9 @@ static jint RegisterNativeMethods(
         bool warn_on_going_to_parent = down_cast<JNIEnvExt*>(env)->vm->IsCheckJniEnabled();
         
         //搜索目标类及它的父类
-        for (mirror::Class* current_class = c; current_class != nullptr; current_class = current_class->GetSuperClass()) {
+        for (mirror::Class* current_class = c; 
+            current_class != nullptr; 
+            current_class = current_class->GetSuperClass()) {
             //从 current_class 中找到函数名为 name，且签名信息与 sig 相同的函数，返回值指向一个ArtMethod对象。
             //FindMethod是模板函数，当模板参数取值为true的时候，表示只搜索类中标记为native的函数。
             m = FindMethod<true>(current_class, name, sig);
