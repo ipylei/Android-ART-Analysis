@@ -441,9 +441,6 @@ mirror::Class* ClassLinker::DefineClass(Thread* self,
 
 
 
-
-
-
 //[class_linker.cc->ClassLinker::InitializeClass]
 //【8.7.7 类初始化】
 bool ClassLinker::InitializeClass(Thread* self, 
@@ -484,4 +481,58 @@ bool ClassLinker::InitializeClass(Thread* self,
     
     //【8.7.8_ClassLinker中其他常用函数】
     ArtField* field = ResolveField()
+}
+
+
+
+
+//dex2oat
+//【9.1】
+int main(int argc, char** argv) {
+    //int result = art::dex2oat(argc, argv); //调用dex2oat函数
+	static int dex2oat(int argc, char** argv) {
+		TimingLogger timings("compiler", false, false);
+		//MakeUnique：art中的辅助函数，用来创建一个由unique_ptr智能指针包裹的目标对象
+		std::unique_ptr<Dex2Oat> dex2oat = MakeUnique<Dex2Oat>(&timings);
+		
+		//①解析参数
+		//【9.2】
+		dex2oat->ParseArgs(argc, argv){
+			std::unique_ptr<ParserOptions> parser_options(new ParserOptions());
+			
+			//【9.2.1】
+			compiler_options_.reset(new CompilerOptions());
+			//【9.2.2】
+			ProcessOptions(parser_options.get()); 
+			//【9.2.3】
+			InsertCompileOptions(argc, argv); 
+			
+		}
+		
+		.... //是否基于profile文件对热点函数进行编译。本书不讨论与之相关的内容
+		
+		//②打开输入文件
+		//OpenFile的目的比较简单，就是创建输出的.oat文件
+		//【9.3】
+		dex2oat->OpenFile(); 
+		
+		//③准备环境
+		//【9.4】
+		dex2oat->Setup(); 
+
+		bool result;
+		//镜像有boot image和app image两大类，镜像文件是指.art文件
+		if (dex2oat->IsImage()) {
+			
+			//④编译boot镜像或app镜像
+			result = CompileImage(*dex2oat); 
+			
+		} else {
+			//编译app，但不生成art文件（即镜像文件）。其内容和CompileImage差不多，只是少了生成.art文件的步骤。
+			result = CompileApp(*dex2oat);
+		}
+		dex2oat->Shutdown(); //清理工作
+		return result;
+	}
+    return result;
 }
