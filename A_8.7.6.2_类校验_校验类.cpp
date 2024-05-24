@@ -78,7 +78,7 @@ MethodVerifier::FailureKind MethodVerifier::VerifyClass(Thread* self,
     ClassLinker* linker = Runtime::Current()->GetClassLinker();
     //对本类所定义的Java方法进行校验。VerifyMethods在上一节已经介绍过了
       // Direct methods.
-      MethodVerifier::FailureData data1 = VerifyMethods<true>(self,
+    MethodVerifier::FailureData data1 = VerifyMethods<true>(self,
                                                               linker,
                                                               dex_file,
                                                               class_def,
