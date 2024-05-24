@@ -95,6 +95,11 @@ MethodVerifier::FailureData MethodVerifier::VerifyMethod(Thread* self,
     //Verify返回成功，表示校验通过。即使出现 kSoftFailure 的情况，该函数也会返回true
     if (verifier.Verify()) {
         ......
+		if (code_item != nullptr && callbacks != nullptr) {
+			// Let the interested party know that the method was verified.
+			callbacks->MethodVerified(&verifier);
+		}
+		
         //failures_ 的类型为vector<VerifyError>。VerifyError为枚举变量，定义了校验中可能出现的错误情况
         if (verifier.failures_.size() != 0) { 
             result.kind = kSoftFailure; 

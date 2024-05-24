@@ -21,10 +21,11 @@ bool Setup() {
     verification_results_.reset(new VerificationResults(compiler_options_.get()));
     //callbacks_：指向一个 QuickCompilerCallbacks 对象。详情见下文介绍
     callbacks_.reset(
-            new QuickCompilerCallbacks(verification_results_.get(),&method_inliner_map_,
+            new QuickCompilerCallbacks(verification_results_.get(),
+										&method_inliner_map_,
                                         IsBootImage() ?       //本例是针对boot镜像的编译
-                                        CompilerCallbacks::CallbackMode::kCompileBootImage 
-                                        :CompilerCallbacks::CallbackMode::kCompileApp)
+											CompilerCallbacks::CallbackMode::kCompileBootImage 
+											:CompilerCallbacks::CallbackMode::kCompileApp)
             );
             
 } 

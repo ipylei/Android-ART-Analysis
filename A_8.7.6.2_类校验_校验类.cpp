@@ -1,8 +1,11 @@
 //现在来看类的校验，代码位于VerifyClass中，如下所示。
 //[method_verifier.cc->MethodVerifier::VerifyClass]
 MethodVerifier::FailureKind MethodVerifier::VerifyClass(Thread* self,
-                                                        mirror::Class* klass,
-                                                        ......) {      //待校验的类由kclass表示
+                                                          mirror::Class* klass,
+                                                          CompilerCallbacks* callbacks,
+                                                          bool allow_soft_failures,
+                                                          LogSeverity log_level,
+                                                          std::string* error) {    //待校验的类由kclass表示
                                                         
     //如果该类已经被校验过，则直接返回校验成功
     if (klass->IsVerified()) {  
