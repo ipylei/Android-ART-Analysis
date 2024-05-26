@@ -1,7 +1,9 @@
 //[dex2oat.cc->Dex2Oat::Setup第二段]
 {
 	.... //第二段代码
+    
 	RuntimeArgumentMap runtime_options;
+    
 	/*为创建编译时使用的Runtime对象准备参数。由上节内容可知，dex2oat用得不是完整虚拟机。另外，
 	  dex2oat中的这个runtime只有Init会被调用，而它的Start函数不会被调用。所以，dex2oat里
 	  用到的这个虚拟机也叫unstarted runtime  */
@@ -14,19 +16,62 @@
 	
 	
 	AddDexFileSources();      //②关键函数，见下文介绍
+    
 	if (IsBootImage() && image_filenames_.size() > 1) {
-		...... //multi_image_情况的处理
+		...... //multi_image_ 情况的处理
 	}
 }
 
 
+//【9.4.2.1】 关键类介绍
+/*【9.4.2.1.1】　ElfWriter和ElfBuilder
+ElfWriter是ART里用于往ELF文件中写入相关信息的工具类，其类家族如图9-7所示。
+·ElfWriter本身是一个虚基类，定义了一些用于操作ELF文件（主要是往ELF文件里写入数据）的函数。
+·ART里ElfWriter的实现类是 ElfWriterQuick。注意，它是一个模板类。
+    对于32位ELF文件，它将使用ElfType32作为模板参数，
+    而对于4位ELF文件，则使用ElfType64作为模板参数。
+*/
 
-//【9.4.2.1.1】　ElfWriter和ElfBuilder
-//ElfWriter是ART里用于往ELF文件中写入相关信息的工具类，其类家族如图9-7所示。
+
+//在dex2oat中，ElfWriterQuick 对象是由 CreateElfWriterQuick 函数创建的，代码如下所示。
+//[elf_writer_quick.cc->CreateElfWriterQuick]
+std::unique_ptr<ElfWriter> CreateElfWriterQuick(InstructionSet instruction_set,
+                                                const InstructionSetFeatures* features,
+                                                const CompilerOptions* compiler_options, File* elf_file) {
+    if (Is64BitInstructionSet(instruction_set)) {
+        //64位的情况
+        return MakeUnique<ElfWriterQuick<ElfTypes64>>(instruction_set, features, compiler_options, elf_file);
+    } else { 
+        //本例对应为x86 32位平台，所以模板参数取值为ElfTypes32
+        //MakeUnique将构造一个ElfWriterQuick<ElfTypes32>类型的对象
+        return MakeUnique<ElfWriterQuick<ElfTypes32>>(instruction_set, features, compiler_options, elf_file);
+    }
+}
+
+
+//接着来看ElfWriterQuick的构造函数，代码如下所示。
+//[elf_writer_quick.cc->ElfWriterQuick<ElfTypes>::ElfWriterQuick]
+template <typename ElfTypes>ElfWriterQuick<ElfTypes>::ElfWriterQuick(
+                InstructionSet instruction_set,
+                const InstructionSetFeatures* features,
+                const CompilerOptions* compiler_options,File* elf_file)
+                : 
+                    ElfWriter(),      //调用基类构造函数
+                    instruction_set_features_(features),
+                    compiler_options_(compiler_options),
+                    elf_file_(elf_file),rodata_size_(0u), text_size_(0u), bss_size_(0u),
+                    //先构造一个FileOutputStream对象，然后在其基础上再构造一个
+                    //BufferedOutputStream对象
+                    output_stream_(MakeUnique<BufferedOutputStream>(MakeUnique<FileOutputStream>(elf_file))),
+                    //创建一个ElfBuilder对象
+                    builder_(new ElfBuilder<ElfTypes>(instruction_set, features, output_stream_.get())) {
+    
+    .......
+}
 
 
 /*
-CreateOatWriters函数中创建了用于输出Elf文件的 ElfWriter 以及 用于输出Oat信息的 OatWriter。
+CreateOatWriters 函数中创建了用于输出Elf文件的 ElfWriter 以及 用于输出Oat信息的 OatWriter。
 注意，一个ElfWriter对象并未和一个OatWriter对象有直接关系，
 二者是通过在elf_writers_以及oat_writers_数组中的索引来关联的。以本章中的boot.oat为例。
 */
