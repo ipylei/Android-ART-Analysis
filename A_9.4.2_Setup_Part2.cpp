@@ -6,12 +6,13 @@
     
 	/*为创建编译时使用的Runtime对象准备参数。由上节内容可知，dex2oat用得不是完整虚拟机。另外，
 	  dex2oat中的这个runtime只有Init会被调用，而它的Start函数不会被调用。所以，dex2oat里
-	  用到的这个虚拟机也叫unstarted runtime  */
+	  用到的这个虚拟机也叫unstarted runtime  
+	*/
 	if (!PrepareRuntimeOptions(&runtime_options)) { 
 		return false; 
 	}
 	
-	//CreateOatWriters将创建ElfWriter和OatWriter对象
+	//CreateOatWriters将创建 ElfWriter 和 OatWriter 对象
 	CreateOatWriters();       //①关键函数，见下文介绍
 	
 	
@@ -24,8 +25,8 @@
 
 
 //【9.4.2.1】 关键类介绍
-/*【9.4.2.1.1】　ElfWriter和ElfBuilder
-ElfWriter是ART里用于往ELF文件中写入相关信息的工具类，其类家族如图9-7所示。
+/*【9.4.2.1.1】　ElfWriter 和 ElfBuilder
+ElfWriter 是ART里用于往ELF文件中写入相关信息的工具类，其类家族如图9-7所示。
 ·ElfWriter本身是一个虚基类，定义了一些用于操作ELF文件（主要是往ELF文件里写入数据）的函数。
 ·ART里ElfWriter的实现类是 ElfWriterQuick。注意，它是一个模板类。
     对于32位ELF文件，它将使用ElfType32作为模板参数，
@@ -59,15 +60,51 @@ template <typename ElfTypes>ElfWriterQuick<ElfTypes>::ElfWriterQuick(
                     ElfWriter(),      //调用基类构造函数
                     instruction_set_features_(features),
                     compiler_options_(compiler_options),
-                    elf_file_(elf_file),rodata_size_(0u), text_size_(0u), bss_size_(0u),
-                    //先构造一个FileOutputStream对象，然后在其基础上再构造一个
-                    //BufferedOutputStream对象
-                    output_stream_(MakeUnique<BufferedOutputStream>(MakeUnique<FileOutputStream>(elf_file))),
+                    【*】elf_file_(elf_file),
+					rodata_size_(0u), 
+					text_size_(0u), 
+					bss_size_(0u),
+                    //先构造一个FileOutputStream对象，然后在其基础上再构造一个BufferedOutputStream对象
+                    【*】output_stream_(MakeUnique<BufferedOutputStream>(MakeUnique<FileOutputStream>(elf_file))),
                     //创建一个ElfBuilder对象
-                    builder_(new ElfBuilder<ElfTypes>(instruction_set, features, output_stream_.get())) {
+                    【*】builder_(new ElfBuilder<ElfTypes>(instruction_set, features, output_stream_.get())) {
     
     .......
 }
+
+
+
+
+//[elf_builder.h->ElfBuilder的构造函数]
+ElfBuilder(InstructionSet isa, const InstructionSetFeatures* features, OutputStream* output)
+        : 
+		isa_(isa), 
+		features_(features), 
+		stream_(output),
+    /*rodata_的类型为Section，对应ELF的.rodata section。rodata_除了包含输出信息外，还包含了ELF Section的相关标志。*/
+    rodata_(this, ".rodata",SHT_PROGBITS,SHF_ALLOC,nullptr,0,kPageSize, 0),
+    text_(this, ".text", SHT_PROGBITS, SHF_ALLOC | SHF_EXECINSTR,.....),
+    ......
+    dynsym_(this, ".dynsym", SHT_DYNSYM, SHF_ALLOC, &dynstr_),
+    ..... 
+	{
+    /*从Execution View来观察ELF文件时，我们将看到segment以及描述它的Program Header（代码
+      中简写为phdr）。下面的phdr_flags_为Section类的成员变量，用于标示该segment的标志。而
+      phdr_type_ 则描述segment的类型。这些标记的详情请读者回顾第4章的内容。  */
+    text_.phdr_flags_ = PF_R | PF_X;
+    .....
+    dynamic_.phdr_type_ = PT_DYNAMIC;
+    ......
+}
+
+//[填写.rodata section示例代码]
+//首先，调用ElfWriter的StartRoData函数。返回值的类型是一个OutputStream对象
+OutputStream* rodata = elf_writer->StartRoData();
+//调用OutputStream的WriteFully，写入数据
+rodata->WriteFully(.rodata section的数据)
+//然后调用ElfWriter的EndRoData结束对.rodata section的数据写入。EndRoData的参数
+//是要结束输入的OutputStream对象
+elf_writer->EndRoData(rodata)
 
 
 /*

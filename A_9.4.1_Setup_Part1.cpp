@@ -127,9 +127,11 @@ const VerifiedMethod* VerifiedMethod::Create(verifier::MethodVerifier* method_ve
             //去虚拟化。下面将介绍这个函数
             verified_method->GenerateDevirtMap(method_verifier);
         }
+	}
         ......
     return verified_method.release();
 }
+
 
 
 
@@ -217,7 +219,8 @@ void VerifiedMethod::GenerateDevirtMap(verifier::MethodVerifier* method_verifier
 
 
 
-图9-6中CompilerCallbacks就是上文提到的类校验时的回调接口类。它是一个虚基类，而dex2oat中用到的是QuickCompilerCallbacks。QuickCompilerCallbacks内部有两个成员变量，分别是：
+图9-6中 CompilerCallbacks 就是上文提到的类校验时的回调接口类。它是一个虚基类，
+而dex2oat中用到的是 QuickCompilerCallbacks。QuickCompilerCallbacks内部有两个成员变量，分别是：
 ·verification_results_，数据类型为 VerificationResults ，它保存了类校验的相关信息。
 ·method_inliner_map_，数据类型为 DexFileToMethodInlinerMap 。它和dex2oat中对Java方法进行内联优化有关。这部分内容比较简单，读者可自行阅读。
 */
