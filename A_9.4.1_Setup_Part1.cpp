@@ -46,8 +46,9 @@ ClassReference是类型别名，在 pair 的两个模板参数中，
     第一个模板参数代表DexFile对象（标示一个Dex文件），
     第二个模板参数为uint_32_t，它用于表示某个类的信息在该Dex文件中类信息表
         （class_defs，读者可回顾第3章的图3-3）里的索引（即第3章图3-6中ClassDef数据结构中的class_idx）。
-与ClassReference作用类似的一个数据类型还有 MethodReference，其定义如下。
 */
+
+//与ClassReference作用类似的一个数据类型还有 MethodReference，其定义如下。
 //[method_reference.h->MethodReference]
 struct MethodReference {
     ....... //构造函数
@@ -116,9 +117,11 @@ class VerifiedMethod {
 //[verified_method.cc->VerifiedMethod::Create]
 const VerifiedMethod* VerifiedMethod::Create(verifier::MethodVerifier* method_verifier, bool compile) {
     //创建一个VerifiedMethod对象，调用VerifiedMethod的构造函数。这部分内容比较简单，请读者自行阅读
-    std::unique_ptr<VerifiedMethod> verified_method(
-        new VerifiedMethod(method_verifier->GetEncounteredFailureTypes(),
-                         method_verifier->HasInstructionThatWillThrow()));
+    std::unique_ptr<VerifiedMethod> verified_method(new VerifiedMethod(
+							method_verifier->GetEncounteredFailureTypes(),
+							method_verifier->HasInstructionThatWillThrow()
+						)
+					);
                          
     //compile为true时表示这个方法将会被编译。
     if (compile) {

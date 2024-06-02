@@ -1,3 +1,4 @@
+//【9.4.2】
 //[dex2oat.cc->Dex2Oat::Setup第二段]
 {
 	.... //第二段代码
@@ -13,9 +14,12 @@
 	}
 	
 	//CreateOatWriters将创建 ElfWriter 和 OatWriter 对象
+	//ElfWriter  ElfWriter是ART里用于往ELF文件中写入相关信息的工具类;
+	//OatWriter  OatWriter是用于输出Oat相关信息的工具类；
+	//【9.4.2.3】
 	CreateOatWriters();       //①关键函数，见下文介绍
 	
-	
+	//【9.4.2.4】
 	AddDexFileSources();      //②关键函数，见下文介绍
     
 	if (IsBootImage() && image_filenames_.size() > 1) {
@@ -64,7 +68,7 @@ template <typename ElfTypes>ElfWriterQuick<ElfTypes>::ElfWriterQuick(
 					rodata_size_(0u), 
 					text_size_(0u), 
 					bss_size_(0u),
-                    //先构造一个FileOutputStream对象，然后在其基础上再构造一个BufferedOutputStream对象
+                    //先构造一个 FileOutputStream 对象，然后在其基础上再构造一个BufferedOutputStream对象
                     【*】output_stream_(MakeUnique<BufferedOutputStream>(MakeUnique<FileOutputStream>(elf_file))),
                     //创建一个ElfBuilder对象
                     【*】builder_(new ElfBuilder<ElfTypes>(instruction_set, features, output_stream_.get())) {
@@ -97,6 +101,8 @@ ElfBuilder(InstructionSet isa, const InstructionSetFeatures* features, OutputStr
     ......
 }
 
+
+//下面我们以填充.rodata section 为例来了解如何使用上述类。相关代码如下所示。
 //[填写.rodata section示例代码]
 //首先，调用ElfWriter的StartRoData函数。返回值的类型是一个OutputStream对象
 OutputStream* rodata = elf_writer->StartRoData();
@@ -107,6 +113,30 @@ rodata->WriteFully(.rodata section的数据)
 elf_writer->EndRoData(rodata)
 
 
+
+//【9.4.2.3】
+//CreateOatWriters将创建ElfWriter和OatWriter对象，来看代码。
+//[dex2oat.cc->Dex2Oat::CreateOatWriters]
+void CreateOatWriters() {
+    ......
+    //elf_writers_ 类型为vector<unique_ptr<ElfWriter>>，它是一个包含ElfWriter对象的数组。
+    //oat_files_ 的内容为代表输出.oat文件的File对象（读者可回顾表9-2）
+    elf_writers_.reserve(oat_files_.size());
+	
+    //oat_writers_类型为vector<unique_ptr<OatWriter>>
+    oat_writers_.reserve(oat_files_.size());
+	
+    //oat_files_ 每一个元素代表一个新创建的Oat文件File对象。下面的for循环将为它们创建对应的Writers
+    for (const std::unique_ptr<File>& oat_file : oat_files_) {
+        //创建一个和oat_file对应的ElfWriter对象。
+        elf_writers_.emplace_back(CreateElfWriterQuick(instruction_set_, instruction_set_features_.get(),compiler_options_.get(), oat_file.get()));
+        //启动刚创建的 ElfWriter 对象。读者可自行研究ElfWriter相关代码
+        elf_writers_.back()->Start();
+		
+        //构造一个 OatWriter 对象，添加到 oat_writers_ 数组里。
+        oat_writers_.emplace_back(new OatWriter(IsBootImage(), timings_));
+    }
+}
 /*
 CreateOatWriters 函数中创建了用于输出Elf文件的 ElfWriter 以及 用于输出Oat信息的 OatWriter。
 注意，一个ElfWriter对象并未和一个OatWriter对象有直接关系，
@@ -116,6 +146,7 @@ CreateOatWriters 函数中创建了用于输出Elf文件的 ElfWriter 以及 用
 
 
 
+//【9.4.2.4】
 //[dex2oat.cc->Dex2Oat::AddDexFileSources]
 bool AddDexFileSources() {
     TimingLogger::ScopedTiming t2("AddDexFileSources", timings_);
@@ -128,8 +159,9 @@ bool AddDexFileSources() {
           有的输入dex文件和代表boot.oat的OatWriter对象关联起来，
 		  具体的关联方式见下文OatWrtier的 AddDexFileSource 函数的代码分析。 */
         for (size_t i = 0; i != dex_filenames_.size(); ++i) {
-            if (!oat_writers_[0]->AddDexFileSource(dex_filenames_[i],
-                        dex_locations_[i])) { return false; }
+            if (!oat_writers_[0]->AddDexFileSource(dex_filenames_[i], dex_locations_[i])) { 
+				return false; 
+			}
         }
     }
     return true;
@@ -144,7 +176,7 @@ bool OatWriter::AddDexFileSource(const char* filename,
     /*为了从一个Dex文件中根据类名（字符串表示）快速找到类在dex文件中class_defs数组中的索引
       （即class_def_idx），ART设计了一个名为 TypeLookupTable 的类来实现该功能。
 	  其实现类似 HashMap。笔者不拟介绍它。
-	  AddDexFileSource第三个参数为CreateTypeLookupTable枚举变量，代
+	  AddDexFileSource第三个参数为 CreateTypeLookupTable 枚举变量，代
       代表是否创建类型查找表。默认为kCreate，即创建类型查找表   */
     uint32_t magic;
     std::string error_msg;
@@ -155,8 +187,10 @@ bool OatWriter::AddDexFileSource(const char* filename,
 	 */
     ScopedFd fd(OpenAndReadMagic(filename, &magic, &error_msg));
     if (fd.get() == -1) {.....
-    } else if (IsDexMagic(magic)) {.....}
-        else if (IsZipMagic(magic)) { //jar包实际为zip压缩文件
+    } else if (IsDexMagic(magic)) {
+		.....
+	}
+    else if (IsZipMagic(magic)) { //jar包实际为zip压缩文件
         if (!AddZippedDexFilesSource(std::move(fd), location, create_type_lookup_table)) { 
 			return false; 
 		}
@@ -170,12 +204,12 @@ bool OatWriter::AddDexFileSource(const char* filename,
 bool OatWriter::AddZippedDexFilesSource(ScopedFd&& zip_fd,
 										const char* location, 
 										CreateTypeLookupTable create_type_lookup_table) {
-    /*输入参数 zif_fd 代表被打开的jar文件。下面的ZipArchive::OpenFromFd函数用于处理这个文件。
-      zip_archives_ 类型为vector<unique_ptr<ZipArchive>>，其元素的类型为ZipArchive，代
+    /*输入参数 zip_fd 代表被打开的jar文件。下面的 ZipArchive::OpenFromFd函数用于处理这个文件。
+      zip_archives_ 类型为vector<unique_ptr<ZipArchive>>，其元素的类型为 ZipArchive，代
       表一个Zip归档对象。通过ZipArchive相关函数可以读取zip文件中的内容。  
 	  */
     zip_archives_.emplace_back(ZipArchive::OpenFromFd(zip_fd.release(), location, &error_msg));
-    //下面的zip_archive代表上面打开的jar包文件
+    //下面的 zip_archive 代表上面打开的jar包文件
     ZipArchive* zip_archive = zip_archives_.back().get();
     ......
     //读取其中的dex项
@@ -189,21 +223,19 @@ bool OatWriter::AddZippedDexFilesSource(ScopedFd&& zip_fd,
 		}
         //zipped_dex_files_ 成员变量存储jar包中对应的dex项
         zipped_dex_files_.push_back(std::move(entry));
+		
         /* zipped_dex_file_locations_ 用于存储dex项的路径信息。注意，dex项位于jar包中，它
-           的路径信息由jar包路径信息处理而来，以framework.jar为例，它的两个dex项路径信息如
-           下所示：
+           的路径信息由jar包路径信息处理而来，以framework.jar为例，它的两个dex项路径信息如下所示：
            （1）classes.dex项路径信息为/system/framework/framework.jar
            （2）classes2.dex项路径信息为/system/framework/framework.jar:classes2.dex 
 		 */
-		 
 	    zipped_dex_file_locations_.push_back(DexFile::GetMultiDexLocation(i, location));
 	    //full_location就是dex路径名
         const char* full_location = zipped_dex_file_locations_.back().c_str();
 	    /* oat_dex_files_ 是vector数组，元素类型为OatDexFile，它是OatWriter的内部类，
 		  读者可回顾图9-9。注意下面的emplace_back函数的参数：
-		  （1）首先，DexFileSource构造一个临时对象，假设是temp，
-		  （2）full_location、temp、create_type_lookup_table三个参数一起构造一个Oat-
-			  DexFile临时对象，假设为temp1
+		  （1）首先，DexFileSource 构造一个临时对象，假设是temp，
+		  （2）full_location、temp、create_type_lookup_table三个参数一起构造一个OatDexFile临时对象，假设为temp1
 		  （3）temp1通过emplace_back加入oat_dex_files_数组的末尾 。 
 		*/
 	    oat_dex_files_.emplace_back(full_location,

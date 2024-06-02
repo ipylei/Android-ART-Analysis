@@ -19,8 +19,7 @@ bool OpenFile() {
           /dalvik-cache/x86/system@framework@boot.oat"，即boot.oat文件。 
 		*/
         for (const char* oat_filename : oat_filenames_) {
-			//CreateEmptyFile 将创建对应路径的文件对象，由File保存。File是art封装的、用于对文件
-            //进行读、写等操作的类。
+			//CreateEmptyFile 将创建对应路径的文件对象，由File保存。File是art封装的、用于对文件进行读、写等操作的类。
             std::unique_ptr<File> oat_file(OS::CreateEmptyFile(oat_filename));
 			
             .....
