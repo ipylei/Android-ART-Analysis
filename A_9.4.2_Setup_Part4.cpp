@@ -1,4 +1,5 @@
-[dex2oat.cc->Dex2Oat::Setup第四段]
+//[dex2oat.cc->Dex2Oat::Setup第四段]
+{
     if (IsBootImage()) {//本例满足此条件，代表编译boot镜像
         //下面这行代码将为创建的Runtime对象设置boot类的来源
         runtime_options.Set(RuntimeArgumentMap::BootClassPathDexList, &opened_dex_files_);
@@ -7,7 +8,7 @@
           读。注意，CreateRuntime函数所创建的runtime对象只是做了Init操作，没有执行它的Start
           函数。所以，该runtime对象也叫unstarted runtime。   */
         if (!CreateRuntime(std::move(runtime_options))) {
-				return false;
+			return false;
 		}
     }
     //初始化其他关键模块

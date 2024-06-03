@@ -47,8 +47,8 @@ Thread::Thread(bool daemon): tls32_(daemon), wait_monitor_(nullptr), interrupted
     ......
 
     //注意，下面这行fill代码将留待第13章介绍RosAlloc的时候再解释
-    std::fill(tlsPtr_.rosalloc_runs, tlsPtr_.rosalloc_runs + kNumRosAllocThreadLocalSizeBracketsInThread,
-        gc::allocator::RosAlloc::GetDedicatedFullRun());
+    std::fill(tlsPtr_.rosalloc_runs, tlsPtr_.rosalloc_runs + kNumRosAllocThreadLocalSizeBracketsInThread, gc::allocator::RosAlloc::GetDedicatedFullRun());
+	
     for (uint32_t i = 0; i < kMaxCheckpoints; ++i) {
         tlsPtr_.checkpoint_functions[i] = nullptr;
     }

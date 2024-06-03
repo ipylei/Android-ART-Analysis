@@ -525,7 +525,65 @@ int main(int argc, char** argv) {
 		if (dex2oat->IsImage()) {
 			
 			//④编译boot镜像或app镜像
-			result = CompileImage(*dex2oat); 
+			//【9.5】
+			result = CompileImage(*dex2oat){
+				
+				//①编译
+				dex2oat.Compile(){
+					//创建一个CompilerDriver实例
+					driver_.reset(new CompilerDriver(compiler_options_.get(),  ......));
+					//调用CompileAll进行编译
+					driver_->CompileAll(class_loader_, dex_files_, timings_){
+						//
+						driver_->PreCompile(class_loader, dex_files, timings);
+						
+						//
+						driver_->Compile(class_loader, dex_files, timings){
+							driver_->CompileDexFile(class_loader,*dex_file,dex_files,......){
+								//编译入口：构造函数
+								CompileClassVisitor visitor(&context){
+									//作为下面的参数
+									optimizer::DexToDexCompilationLevel dex_to_dex_compilation_level = GetDexToDexCompilationLevel(soa.Self(), *driver, jclass_loader, dex_file, class_def);
+									
+									CompileMethod(soa.Self(), driver, it.GetMethodCodeItem(), it.GetMethodAccessFlags(),it.GetMethodInvokeType(class_def),
+												  class_def_index, method_idx, jclass_loader, dex_file, dex_to_dex_compilation_level,compilation_enabled, dex_cache){
+										//dex到dex优化的入口函数为ArtCompileDEX。下文将介绍它
+										//【9.5.2】
+										//if
+										compiled_method = optimizer::ArtCompileDEX(driver,code_item,access_flags,invoke_type,class_def_idx,method_idx,
+																				class_loader,dex_file,(verified_method != nullptr)
+																					? dex_to_dex_compilation_level
+																					: optimizer::DexToDexCompilationLevel::kRequired);
+										
+										//native标记的函数将调用JniCompile进行编译
+										//【9.5.3】
+										//else if
+										compiled_method = driver->GetCompiler()->JniCompile(access_flags, method_idx, dex_file);
+										
+										
+										/*注意，不管最终进行的是dex到dex编译、jni编译还是dex到机器码的编译，其返回结果都由一个 CompiledMethod 对象表示。
+											下面将对这个编译结果进行处理。如果该结果不为空，则将其存储到driver中去以做后续的处理。
+										*/
+										driver->AddCompiledMethod(method_ref, compiled_method, non_relative_linker_patch_count);
+									}
+								}
+							}
+						}
+					}
+				}
+				
+				
+				if(!dex2oat.WriteOatFiles()){
+					//②输出.oat文件
+					......
+				};  
+				
+				
+				//③处理.art文件
+				if (!dex2oat.HandleImage()) {
+						......
+				}
+			}
 			
 		} else {
 			//编译app，但不生成art文件（即镜像文件）。其内容和CompileImage差不多，只是少了生成.art文件的步骤。
