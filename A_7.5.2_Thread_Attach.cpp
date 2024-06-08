@@ -66,6 +66,9 @@ struct PACKED(sizeof(void * ))tls_ptr_sized_values {
     注意，stack_end一词很有歧义，它其实并不是用来描述栈底地址的。
     下文将详细介绍ART虚拟机中线程栈的设置情况。*/
     uint8_t * stack_end;
+    
+    //【10.2.4】
+    ManagedStack managed_stack;
 
     JNIEnvExt * jni_env; //和本线程关联的Jni环境对象
     Thread * self; //指向包含本对象的Thread对象
@@ -79,12 +82,13 @@ struct PACKED(sizeof(void * ))tls_ptr_sized_values {
     /*注意下面两个关键成员变量：
     （1）jni_entrypoints：结构体，和JNI调用有关。
             里边只有一个函数指针成员变量，名为pDlsymLookup。
-            当JNI函数未注册时，这个成员变量将被调用【以】找到目标JNI函数
+            当JNI函数未注册时，这个成员变量将被调用【以】找到目标JNI函数    【参考 11.2】
 			
     （2）quick_entrypoints：结构体，其成员变量全是个函数指针类型，
             其定义可参考quick_entrypoints_list.h。它包含了一些由ART虚拟机提供的某些功能，
             而我们编译得到的机器码可能会用到它们。
-            生成机器码时，我们需要生成对应的调用指令以跳转到这些函数*/
+            生成机器码时，我们需要生成对应的调用指令以跳转到这些函数
+    */
     JniEntryPoints jni_entrypoints;
     QuickEntryPoints quick_entrypoints;
 

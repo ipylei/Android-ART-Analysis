@@ -52,7 +52,7 @@ void ClassLinker::LoadClassMembers(Thread * self,
             uint32_t field_idx = it.GetMemberIndex();
             if (num_sfields == 0 || LIKELY(field_idx > last_field_idx)) {
                 
-				//加载这个ArtField的内容。下文将单独介绍此函数
+				//加载这个 ArtField 的内容。下文将单独介绍此函数
 				//【*】加载并设置到ArtField
                 LoadField(it, klass, &sfields->At(num_sfields));
                 

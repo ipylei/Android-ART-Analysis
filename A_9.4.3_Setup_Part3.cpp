@@ -24,11 +24,16 @@
            所以WriteAndOpenDexFiles一方面要打开输入的dex项（对应函数名中的OpenDexFiles），另一方面
            要将这些dex项的信息写入到oat文件中（对应函数名中的Write）。    
         */
+        //【下文 9.4.3.2】
         if (!oat_writers_[i]->WriteAndOpenDexFiles(rodata_.back(),
-                    oat_files_[i].get(),instruction_set_,
-                    instruction_set_features_.get(),key_value_store_.get(),
-                    true,      //注意，这个参数为true
-                    &opened_dex_files_map, &opened_dex_files)) {
+                                                    oat_files_[i].get(),
+                                                    instruction_set_,
+                                                    instruction_set_features_.get(),
+                                                    key_value_store_.get(),
+                                                    true,      //注意，这个参数为true
+                                                    &opened_dex_files_map, 
+                                                    &opened_dex_files)
+            ) {
             
             ..... 
                     
@@ -38,17 +43,19 @@
         if (opened_dex_files_map != nullptr) {
             opened_dex_files_maps_.push_back(std::move(opened_dex_files_map));
             for (std::unique_ptr<const DexFile>& dex_file : opened_dex_files) {
-                /* dex_file_oat_index_map_类型为unordered_map<const DexFile*,size_t>，
-                key值为一个DexFile对象，value为对应的OatWriter索引。对本例编译boot.oat而言，i取值为0。
+                /* dex_file_oat_index_map_ 类型为 unordered_map <const DexFile*,size_t>，
+                key值为一个 DexFile 对象，value为对应的 OatWriter 索引。对本例编译boot.oat而言，i取值为0。
                 */
                 dex_file_oat_index_map_.emplace(dex_file.get(), i);
                 opened_dex_files_.push_back(std::move(dex_file));
             }    
         }    
-    }
-} //for循环结束
-//赋值opened_dex_files_的内容给dex_files_数组。
-dex_files_ = MakeNonOwningPointerVector(opened_dex_files_);
+    } //for循环结束
+    
+    //赋值 opened_dex_files_ 的内容给 dex_files_ 数组。
+    dex_files_ = MakeNonOwningPointerVector(opened_dex_files_);
+} 
+
 
 
 
@@ -58,7 +65,7 @@ dex_file_oat_index_map_
 
 
 //【9.4.3.1.1】
-[oat.h->OatHeader]
+//[oat.h->OatHeader]
 //PACKED(4)表示OatHeader内存布局按4字节对齐。有些成员变量的含义将在后续章节中介绍
 class PACKED(4) OatHeader {
 	public:
@@ -73,10 +80,12 @@ class PACKED(4) OatHeader {
 		uint32_t dex_file_count_;                  //oat文件包含多少个dex文件
 		uint32_t executable_offset_;
 		
-		//蹦床
-		//下面的成员变量描述的是虚拟机中几个trampoline函数的入口地址，它和Java虚拟机如何执行Java代码（不论是解释执行还是编译成机器码后的执行）有关，我们留待后续章节再来介绍。
+		//蹦床   【10.1.2.4.3】　ClassLinker类里的相关成员变量
+		//下面的成员变量描述的是虚拟机中几个trampoline函数的入口地址，
+        //它和Java虚拟机如何执行Java代码（不论是解释执行还是编译成机器码后的执行）有关，我们留待后续章节再来介绍。
 		uint32_t interpreter_to_interpreter_bridge_offset_;
 		uint32_t interpreter_to_compiled_code_bridge_offset_;
+        
 		uint32_t jni_dlsym_lookup_offset_;
 		uint32_t quick_generic_jni_trampoline_offset_;
 		uint32_t quick_imt_conflict_trampoline_offset_;
@@ -91,7 +100,7 @@ class PACKED(4) OatHeader {
 
 
 
-//【9.4.3.1.2】　OatDexFile介绍
+//【9.4.3.1.2】　OatDexFile 介绍
 //接着来看OatDexFile项，它在代码中对应为OatDexFile类。图9-13所示Oat文件中包含的OatDexFile信息由该类的成员变量组成。
 //[oat_writer.cc->OatDexFile类]
 class OatWriter::OatDexFile { //此处只列出写入OatDexFile项的成员变量
@@ -142,7 +151,7 @@ OatWriter::OatClass::OatClass(size_t offset,
 
 	status_ = status;
 	
-    //method_offsets_和method_headers_数组的长度与被编译处理过的方法的格个数相等
+    // method_offsets_ 和 method_headers_ 数组的长度与被编译处理过的方法的格个数相等
     method_offsets_.resize(num_non_null_compiled_methods);
     method_headers_.resize(num_non_null_compiled_methods);
 
@@ -287,7 +296,7 @@ bool OatWriter::OpenDexFiles(File* file, bool verify,
     /*注意参数：
     file：代表需要创建的oat文件，对本例而言就是boot.oat文件
     verify：取值为true
-    opened_dex_files_map和opened_dex_files为输出参数，详情见下面的代码  */
+    opened_dex_files_map 和 opened_dex_files 为输出参数，详情见下面的代码  */
     size_t map_offset = oat_dex_files_[0].dex_file_offset_;
     size_t length = size_ - map_offset;
     std::string error_msg;

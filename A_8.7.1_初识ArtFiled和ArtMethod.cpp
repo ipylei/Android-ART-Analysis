@@ -56,12 +56,30 @@ class ArtMethod { //此处只列举和本章内容相关的成员信息
 
 			//下面两个变量是函数指针，它们是一个 ArtMethod 对象代表的Java方法的入口函数地址。
 			//我们后续章节介绍Java代码执行的时候再来讨论它
-			void * entry_point_from_jni_;
-			void * entry_point_from_quick_compiled_code_;
+			
+            //jni机器码入口地址
+            void * entry_point_from_jni_;                  //用于jni方法，指向jni方法对应的机器码入口地址
+            //机器码入口地址
+            void * entry_point_from_quick_compiled_code_;  //用于非jni方法，指向对应的机器码入口
+            /*
+            请读者注意：
+                ·对jni方法而言，它的机器码入口地址和jni机器码入口地址都会被设置。我们后续介绍jni时再详细介绍这两个入口地址的作用。
+                ·对非jni方法而言，它的jni机器码入口地址将有其他用途
+            */
+            
+            //(9.6.2.3 oat文件和art文件的关系) art文件里的ArtMethod > ptr_sized_fields_  > entry_point_from_quick_compiled_code_ 指向位于oat文件里对应的code_数组
 
 		} ptr_sized_fields_;
 		
 }
+
+
+/*
+jni_entrypoints_x86.S
+quick_entrypoints_x86.S
+
+http://aospxref.com/android-7.0.0_r7/xref/art/runtime/arch/arm64/quick_entrypoints_arm64.S
+*/
 
 
 
@@ -95,12 +113,12 @@ class DexCache: public Object { //此处只列举和本章内容相关的成员�
 		 */
 		uint64_t resolved_methods_;
 
-		/*实际为GCRoot<Class>*，指向GcRoot<Class>数组，成员的数据类型为GcRoot<Class>（本质质上就是mirror::Class*）。
+		/*实际为 GCRoot<Class>*，指向GcRoot<Class>数组，成员的数据类型为GcRoot<Class>（本质质上就是mirror::Class*）。
 		它存储该dex文件里使用的数据类型信息数组。
 		该字段和Dex文件里的 type_ids 数组有关。  */
 		uint64_t resolved_types_;
 
-		/*实际为GCRoot<String>*，指向GcRoot<String>数组，包括该dex文件里使用的字符串信息数组。
+		/*实际为 GCRoot <String>*，指向GcRoot<String>数组，包括该dex文件里使用的字符串信息数组。
 		注意，GcRoot<String>本质上就是mirror::String*。该字段和Dex文件的string_ids数组有关
 		 */
 		uint64_t strings_;

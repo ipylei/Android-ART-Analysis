@@ -197,7 +197,6 @@ app_main.cpp->main() {
 
 
 
-
 //【8.7.5 类加载入口】
 ClassLoader //含有loadClass(String name)函数
 	BootClassLoader     //含有findClass(String name)函数
@@ -276,7 +275,7 @@ mirror::Class* ClassLinker::DefineClass(Thread* self,
                                         const DexFile& dex_file, 
                                         const DexFile::ClassDef& dex_class_def) {
     
-    //注册DexFile对象，包含如下操作：
+    //注册 DexFile 对象，包含如下操作：
     //给classLoader对象创建一个classTable对象
     //将DexCache对象存入ClassTable的 strong_roots_ 中 (std::vector<GcRoot<mirror::Object>>)
     mirror::DexCache* dex_cache = RegisterDexFile(dex_file, class_loader.Get());
@@ -324,18 +323,20 @@ mirror::Class* ClassLinker::DefineClass(Thread* self,
 								it.NumVirtualMethods()
 				);
 			
+            //处理 direct 方法
 			for (size_t i = 0; it.HasNextDirectMethod(); i++, it.Next()) {
 				LoadMethod(self, dex_file, it, klass, method);
-				//注意，oat_class 信息只在LinkCode中用到。LinkCode留待10.1节介绍
+				//注意，oat_class 信息只在 LinkCode 中用到。LinkCode 留待10.1节介绍
+                //【10.1.1】
 				LinkCode(method, oat_class, class_def_method_index);
 			}
 			
-			//处理virtual方法。注意，对表示virtual方法的ArtMethod对象而言，
+			//处理 virtual方法。注意，对表示virtual方法的ArtMethod对象而言，
 			//它们的 method_index_ 和 klass  methods_ 数组没有关系，也不在下面的循环中设置。
 			for (size_t i = 0; it.HasNextVirtualMethod(); i++, it.Next()) {
 				//和direct方法处理一样，唯一不同的是，此处不调用ArtMethod的 SetMethodIndex 函数，即不设置它的 method_index_ 成员
-				
 				LoadMethod(self, dex_file, it, klass, method);
+                //【10.1.1】
 				LinkCode(method, oat_class, class_def_method_index);
 			}
 											
@@ -441,8 +442,9 @@ mirror::Class* ClassLinker::DefineClass(Thread* self,
 
 
 
-//[class_linker.cc->ClassLinker::InitializeClass]
+
 //【8.7.7 类初始化】
+//[class_linker.cc->ClassLinker::InitializeClass]
 bool ClassLinker::InitializeClass(Thread* self, 
                                   Handle<mirror::Class> klass,
                                   bool can_init_statics, 
@@ -511,14 +513,60 @@ int main(int argc, char** argv) {
 		
 		.... //是否基于profile文件对热点函数进行编译。本书不讨论与之相关的内容
 		
-		//②打开输入文件
+		//②打开输入文件，创建输出的.oat文件
 		//OpenFile的目的比较简单，就是创建输出的.oat文件
 		//【9.3】
 		dex2oat->OpenFile(); 
 		
 		//③准备环境
 		//【9.4】
-		dex2oat->Setup(); 
+		dex2oat->Setup(){
+            //【9.4.1 part1】 
+            /*
+            在做类校验时，外界可以传递一个回调接口对象
+                ·当类校验失败时，该【接口对象(callback)】的 ClassRejected 函数将被调用。
+                ·当类的Java方法校验通过时，该【接口对象(callback)】的 MethodVerified 函数将被调用。
+            */
+            
+            //【9.4.2 part2】
+            /*
+            【9.4.2.2】 
+            OAT和ELF的关系
+                ·一个命名为 oatdata 的symbol。参考4.2.2.3节的介绍可知，该符号的value字段标记一个虚拟内存的地址，
+                                            它恰好是.rodata的起始位置。而该符号的size取值也正好与.rodata的size相等。
+                
+                ·一个命名为 oatexec 的symbol，它的value恰好是.text section在虚拟内存的起始位置。
+                                            同样，oatexec symbol的size也与.text sectio的size相等。
+                
+                ·一个命名为 oatlastword 的symbol，它是ELF文件中oat内容结束的位置。
+                                            注意，由于oatlastword symbol本身还占据了四个字节，
+                                            所以它的起始位置为oatexec起始位置 +(oatexec size)-4个字节。
+
+
+            CreateOatWriters();   //CreateOatWriters 将创建 ElfWriter 和 OatWriter 对象
+                                  //ElfWriter(构造段:Section) 
+                                  //OatWriter(读取dex文件，写入封装的oat信息)对象
+                                  
+                                  
+                                  
+            AddDexFileSources();  //打开并读取输入文件(.jar包中的dex文件)，然后填充到对应的字段：
+                                      zipped_dex_files_ 成员变量存储jar包中对应的dex项
+                                      zipped_dex_file_locations_ 用于存储dex项的路径信息。
+                                      oat_dex_files_ 是vector数组，元素类型为OatDexFile(保存了一个dex项的路径和该dex项的源)
+                                      zip_archives_ 类型为vector<unique_ptr<ZipArchive>>，其元素的类型为 ZipArchive，代表一个Zip归档对象，即jar文件
+            */
+            
+            //【9.4.3 part3】
+            /*
+                WriteAndOpenDexFiles;  //为boot.oat文件对应的OatWriter准备数据， 如将OatDexFile信息写入oat文件的OatDexFile区域
+                
+            */
+            
+            //【9.4.4 part4】
+            /*
+                创建art runtime对象，没有执行它的Start函数。所以，该runtime对象也叫unstarted runtime
+            */
+        }
 
 		bool result;
 		//镜像有boot image和app image两大类，镜像文件是指.art文件
@@ -528,38 +576,52 @@ int main(int argc, char** argv) {
 			//【9.5】
 			result = CompileImage(*dex2oat){
 				
-				//①编译
+				//①编译    
+                //【9.5.1】 Compile函数的目标就是编译上文所打开的那些Dex文件中的Java方法
 				dex2oat.Compile(){
 					//创建一个CompilerDriver实例
 					driver_.reset(new CompilerDriver(compiler_options_.get(),  ......));
 					//调用CompileAll进行编译
 					driver_->CompileAll(class_loader_, dex_files_, timings_){
 						//
-						driver_->PreCompile(class_loader, dex_files, timings);
+						driver_->PreCompile(class_loader, dex_files, timings){
+                            //LoadImageClasses 函数的主要工作是遍历 image_classes_ 中的类，然后通过ClassLinker的FindSystemClass进行加载
+                            LoadImageClasses(timings);
+                            
+                            //遍历dex文件，校验其中的类
+                            Verify(class_loader, dex_files, timings);  
+                            //遍历dex文件，确保类的初始化
+                            InitializeClasses(class_loader, dex_files, timings);
+                            //遍历 image_classes_ 中的类，检查类的引用型成员变量，将这些变量对应的Class对象也加到image_classes_容器中。 
+                            UpdateImageClasses(timings);
+                        }
 						
 						//
 						driver_->Compile(class_loader, dex_files, timings){
 							driver_->CompileDexFile(class_loader,*dex_file,dex_files,......){
 								//编译入口：构造函数
 								CompileClassVisitor visitor(&context){
-									//作为下面的参数
+									//dex_to_dex_compilation_level 作为下面的参数
 									optimizer::DexToDexCompilationLevel dex_to_dex_compilation_level = GetDexToDexCompilationLevel(soa.Self(), *driver, jclass_loader, dex_file, class_def);
 									
 									CompileMethod(soa.Self(), driver, it.GetMethodCodeItem(), it.GetMethodAccessFlags(),it.GetMethodInvokeType(class_def),
 												  class_def_index, method_idx, jclass_loader, dex_file, dex_to_dex_compilation_level,compilation_enabled, dex_cache){
-										//dex到dex优化的入口函数为ArtCompileDEX。下文将介绍它
-										//【9.5.2】
+										//【9.5.2】 dex到dex优化的入口函数为ArtCompileDEX。下文将介绍它
 										//if
 										compiled_method = optimizer::ArtCompileDEX(driver,code_item,access_flags,invoke_type,class_def_idx,method_idx,
 																				class_loader,dex_file,(verified_method != nullptr)
 																					? dex_to_dex_compilation_level
 																					: optimizer::DexToDexCompilationLevel::kRequired);
 										
-										//native标记的函数将调用JniCompile进行编译
-										//【9.5.3】
+										//【9.5.3】 native标记的函数将调用JniCompile进行编译
 										//else if
 										compiled_method = driver->GetCompiler()->JniCompile(access_flags, method_idx, dex_file);
 										
+                                        
+                                        //【9.5.4】dex到机器码的编译优化将由Optimizing的Compile来完成
+                                        //else
+                                        compiled_method = driver->GetCompiler()->Compile(code_item, access_flags, invoke_type,class_def_idx, method_idx,
+                                                                                         class_loader,dex_file, dex_cache);
 										
 										/*注意，不管最终进行的是dex到dex编译、jni编译还是dex到机器码的编译，其返回结果都由一个 CompiledMethod 对象表示。
 											下面将对这个编译结果进行处理。如果该结果不为空，则将其存储到driver中去以做后续的处理。
@@ -581,7 +643,7 @@ int main(int argc, char** argv) {
 				
 				//③处理.art文件
 				if (!dex2oat.HandleImage()) {
-						......
+					......
 				}
 			}
 			
@@ -593,4 +655,115 @@ int main(int argc, char** argv) {
 		return result;
 	}
     return result;
+}
+
+
+
+/*
+jni_entrypoints_x86.S
+quick_entrypoints_x86.S
+
+http://aospxref.com/android-7.0.0_r7/xref/art/runtime/arch/arm64/jni_entrypoints_arm64.S
+http://aospxref.com/android-7.0.0_r7/xref/art/runtime/arch/arm64/quick_entrypoints_arm64.S
+
+非JNI方法
+    有机器码：机器码执行模式
+    无机器码：解释执行模式
+
+JNI方法
+    有机器码：机器码入口为(一串汇编代码，本身会跳转到JNI机器码入口地址)
+                => jni机器码入口
+                    > 已注册：为 Native层函数
+                    > 未注册：为 art_jni_dlsym_lookup_stub
+                        1.bl artFindNativeMethod(注册Native层函数；返回Native层函数)
+                        2.执行【Native层函数】
+                    
+              
+    无机器码：机器码入口为(art_quick_generic_jni_trampoline)
+                    1.bl artQuickGenericJniTrampoline(寻找并返回Native层函数地址，同时未注册的情况下还进行注册)
+                    2.执行【Native层函数】
+    
+    【所以】：
+        有机器码：机器码入口 -> JNI机器码入口 -> Native层函数地址
+        无机器码：机器码入口 -> Native层函数地址
+        
+*/
+
+
+//【10.2 解释执行】
+//一个方法如果采取解释执行的话，其ArtMethod对象的机器码入口将指向一段跳转代码——art_quick_to_interpreter_bridge
+//【10.2.2】
+//art_quick_to_interpreter_bridge
+
+//[quick_trampoline_entrypoints.cc->artQuickToInterpreterBridge]
+extern "C" uint64_t artQuickToInterpreterBridge (ArtMethod* method,
+                                                Thread* self, 
+                                                ArtMethod** sp) {
+
+    //【10.2.3】解释执行的入口函数
+    //[interpreter.h->EnterInterpreterFromEntryPoint]
+    //[interpreter.cc->EnterInterpreterFromEntryPoint]
+    result = interpreter::EnterInterpreterFromEntryPoint(self, code_item, shadow_frame){
+        
+        //下面这段代码和JIT有关，相关知识见本章后续对JIT的介绍
+        jit::Jit* jit = Runtime::Current()->GetJit();
+        if (jit != nullptr) {
+            jit->NotifyCompiledCodeToInterpreterTransition(self, shadow_frame->GetMethod());
+        }
+        
+        //【*】关键函数
+        ////[interpreter.cc->Execute]
+        return Execute(self, code_item, *shadow_frame, JValue()){
+            //(1)采用对应汇编语言编写的
+            bool returned = ExecuteMterpImpl(self, code_item, &shadow_frame, &result_register);
+            if (returned) {
+                return result_register;
+            }
+            
+            //(2)由C++编写，基于switch/case逻辑实现
+            return ExecuteSwitchImpl<false, false>(self, code_item, shadow_frame, result_register, false){
+                //【*】invoke-direct指令码的处理
+                case Instruction::INVOKE_DIRECT: { 
+                    bool success = DoInvoke<kDirect, false, do_access_check>(self, shadow_frame, inst, inst_data, &result_register){
+                        //下面这段代码和JIT有关，我们留待后续章节再来介绍。
+                        jit::Jit* jit = Runtime::Current()->GetJit();
+                        if (jit != nullptr) {
+                            ......
+                        }
+                        
+                        //【*】instrumentation的处理
+                        return DoCall<is_range, do_access_check>(called_method, self, shadow_frame, inst, inst_data,result){
+                            //调用DoCallCommon，我们接着看这个函数
+                            return DoCallCommon<is_range, do_assignability_check>( called_method, self, shadow_frame,result, number_of_inputs, arg, vregC){
+                                ArtMethod* target = new_shadow_frame->GetMethod();
+                                
+                                //【*】如果处于调试模式，或者方法C不存在机器码，则调用 ArtInterpreterToInterpreterBridge 函数，显然，它是解释执行的继续。
+                                if (ClassLinker::ShouldUseInterpreterEntrypoint(target, target->GetEntryPointFromQuickCompiledCode())) {
+                                    ArtInterpreterToInterpreterBridge(self, code_item, new_shadow_frame,result){
+                                        //内部继续调用 Execute()
+                                    }
+                                } 
+                                else {
+                                    //【*】如果可以用机器码方式执行方法C，则调用 ArtInterpreterToCompiledCodeBridge，它将从解释执行模式进入机器码执行模式。
+                                    ArtInterpreterToCompiledCodeBridge(self, shadow_frame.GetMethod(), code_item,new_shadow_frame, result){
+                                        //void ArtMethod::Invoke()
+                                        method->Invoke(){
+                                            //if
+                                            art_quick_invoke_stub()
+                                            //else
+                                            art_quick_invoke_static_stub()
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    break;
+                }
+            }
+            
+            //(3)由C++编写，基于goto逻辑实现
+            return ExecuteGotoImpl<false, false>(self, code_item, shadow_frame,result_register);
+        }
+    }
 }

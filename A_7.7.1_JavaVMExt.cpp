@@ -1,3 +1,5 @@
+//【详情参考 11.1.1】
+
 //[java_vm_ext.cc->JavaVMExt]
 JavaVMExt::JavaVMExt(Runtime* runtime, const RuntimeArgumentMap& runtime_options)
         : 

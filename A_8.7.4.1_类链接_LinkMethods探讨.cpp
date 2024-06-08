@@ -1,6 +1,6 @@
 //8.7.4.1　LinkMethods探讨 
 //LinkMethod函数本身的内容非常简单，代码如下所示。
-//（更新目标类的iftable_、vtable_、相关隐含成员emedded_imf等信息）
+//（更新目标类的 iftable_、vtable_、相关隐含成员 emedded_imf 等信息）
 //[class_linker.cc->ClassLinker::LinkMethods]
 bool ClassLinker::LinkMethods(Thread* self,
             Handle<mirror::Class> klass,

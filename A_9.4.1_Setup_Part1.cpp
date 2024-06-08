@@ -9,7 +9,7 @@ bool Setup() {
     
     /* 下面这几个函数的功能：
     （1）PrepareImageClasses：读取--image-classes选项指定的文件，
-            本例是/system/etc/pre-loaded-classes，该文件的内容将存储到image_classes_成员变量，
+            本例是/system/etc/pre-loaded-classes，该文件的内容将存储到 image_classes_ 成员变量，
             其数据类型是unique_ptr<unordered_set<string>>。
     （2）PrepareCompiledClasses：读取--compiled-classes 选项指定的文件，
         本例是/system/etc/compiled-classes，其内容将存储到 compiled_classes_ 成员变量，
@@ -21,10 +21,10 @@ bool Setup() {
             return false;  
     }
     // verification_results_：指向一个 VerificationResults 对象，下文将介绍它。
-    //【9.4.1.3】
+    //【下文 9.4.1.3】
     verification_results_.reset(new VerificationResults(compiler_options_.get()));
     //callbacks_：指向一个 QuickCompilerCallbacks 对象。详情见下文介绍
-    //【9.4.1.3】
+    //【下文 9.4.1.3】
     callbacks_.reset(
             new QuickCompilerCallbacks(verification_results_.get(),
 										&method_inliner_map_,
@@ -116,11 +116,10 @@ class VerifiedMethod {
 
 //[verified_method.cc->VerifiedMethod::Create]
 const VerifiedMethod* VerifiedMethod::Create(verifier::MethodVerifier* method_verifier, bool compile) {
-    //创建一个VerifiedMethod对象，调用VerifiedMethod的构造函数。这部分内容比较简单，请读者自行阅读
-    std::unique_ptr<VerifiedMethod> verified_method(new VerifiedMethod(
-							method_verifier->GetEncounteredFailureTypes(),
-							method_verifier->HasInstructionThatWillThrow()
-						)
+    //创建一个VerifiedMethod对象，调用 VerifiedMethod 的构造函数。这部分内容比较简单，请读者自行阅读
+    std::unique_ptr<VerifiedMethod> verified_method(
+                    new VerifiedMethod(method_verifier->GetEncounteredFailureTypes(),
+                                       method_verifier->HasInstructionThatWillThrow())
 					);
                          
     //compile为true时表示这个方法将会被编译。

@@ -1,29 +1,3 @@
-//[dex2oat.cc->Dex2Oat::CompileImage]
-static int CompileImage(Dex2Oat& dex2oat) {
-    //加载profile文件，对基于profile文件的编译有效，本例不涉及它
-    dex2oat.LoadClassProfileDescriptors();
-	
-	//①编译
-    dex2oat.Compile(); 
-	
-    if(!dex2oat.WriteOatFiles()){
-		//②输出.oat文件
-		......
-	};   
-	
-    .....
-	
-    //③处理.art文件
-    if (!dex2oat.HandleImage()) {
-			......
-	}
-    .....　//其他处理，内容非常简单。感兴趣的读者可自行阅读
-	
-    return EXIT_SUCCESS;
-}
-
-
-
 //[dex2oat.cc->Dex2Oat::Compile]
 void Compile() {
     .... //略去次要内容
@@ -62,7 +36,7 @@ CompilerDriver::CompilerDriver(                  //输入参数比较多
 								instruction_set_(instruction_set),
 								instruction_set_features_(instruction_set_features),
 								.......
-								/*compiled_methods_类型为MethodTable，它是数据类型的别名，其真实类型为SafeMap
+								/*compiled_methods_ 类型为MethodTable，它是数据类型的别名，其真实类型为SafeMap
 								  <const MethodReference, CompiledMethod*, MethodReferenceComparator>，
 								 代表一个map容器，key为MethodReference（代表一个Java方法），value指向Java方
 								  法编译的结果对象。MethodReferenceComparator为map容器用到的比较器，读者可不
@@ -111,15 +85,12 @@ class CompilerDriver::DexFileMethodSet {
 
 
 
-
-
-
 //[compiler_driver.cc->CompilerDriver::CompileAll]
 void CompilerDriver::CompileAll(jobject class_loader, const std::vector<const DexFile*>& dex_files, TimingLogger* timings) {
     //创建线程池。这部分内容非常简单，笔者不拟介绍它们
     InitializeThreadPools();
 	
-    //重点来看PreCompile和Compile两个关键函数
+    //重点来看 PreCompile 和 Compile 两个关键函数
     PreCompile(class_loader, dex_files, timings);
 	
     if (!GetCompilerOptions().VerifyAtRuntime()) {
@@ -154,15 +125,17 @@ void CompilerDriver::PreCompile(jobject class_loader, const std::vector<const De
     }
     .....
     /*下面三个函数的作用：
-      （1）Verify：遍历dex文件，校验其中的类。校验结果通过QuickCompilationCallback存储在CompilerDriver的verification_results_中。
+      （1）Verify：遍历dex文件，校验其中的类。校验结果通过 QuickCompilationCallback 存储在CompilerDriver的verification_results_中。
       （2）InitializeClasses：遍历dex文件，确保类的初始化。
-      （3）UpdateImageClasses：遍历image_classes_中的类，检查类的引用型成员变量，将这些
-       变量对应的Class对象也加到image_classes_容器中。 
+      （3）UpdateImageClasses：遍历 image_classes_ 中的类，检查类的引用型成员变量，将这些变量对应的Class对象也加到image_classes_容器中。 
 	*/
     Verify(class_loader, dex_files, timings);
     InitializeClasses(class_loader, dex_files, timings);
     UpdateImageClasses(timings);
 }
+
+
+
 
 
 
@@ -214,7 +187,7 @@ void CompilerDriver::CompileDexFile(jobject class_loader,
     CompileClassVisitor visitor(&context);
 	
 	/*context.ForAll将触发线程池进行编译工作。注意，编译是以类为单位进行处理的，每一个待编译
-      的类都会交由CompileClassVisitor的Visit函数进行处理。
+      的类都会交由 CompileClassVisitor 的Visit函数进行处理。
 	 */
     context.ForAll(0, dex_file.NumClassDefs(), &visitor, thread_count);
 }
@@ -346,8 +319,8 @@ static void CompileMethod(Thread* self, CompilerDriver* driver, const DexFile::C
         const VerifiedMethod* verified_method = driver->GetVerificationResults()->GetVerifiedMethod(method_ref);
         ....
         if (compile) {
-            /*dex到机器码的编译优化将由Optimizing的Compile来完成。该函数返回一个CompiledMethod对象。注意，如果一个Java方法不能做dex到机器码优化的话，该函数将返回
-              nullptr。   
+            /*dex到机器码的编译优化将由Optimizing的Compile来完成。该函数返回一个CompiledMethod对象。
+            注意，如果一个Java方法不能做dex到机器码优化的话，该函数将返回nullptr。   
 			*/
             compiled_method = driver->GetCompiler()->Compile(code_item,
                         access_flags, invoke_type,class_def_idx, method_idx,

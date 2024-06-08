@@ -13,13 +13,13 @@
 		return false; 
 	}
 	
-	//CreateOatWriters将创建 ElfWriter 和 OatWriter 对象
+	//CreateOatWriters 将创建 ElfWriter 和 OatWriter 对象
 	//ElfWriter  ElfWriter是ART里用于往ELF文件中写入相关信息的工具类;
 	//OatWriter  OatWriter是用于输出Oat相关信息的工具类；
-	//【9.4.2.3】
+	//【下文 9.4.2.1】【下文 9.4.2.3】
 	CreateOatWriters();       //①关键函数，见下文介绍
 	
-	//【9.4.2.4】
+	//【下文 9.4.2.4】
 	AddDexFileSources();      //②关键函数，见下文介绍
     
 	if (IsBootImage() && image_filenames_.size() > 1) {
@@ -104,12 +104,12 @@ ElfBuilder(InstructionSet isa, const InstructionSetFeatures* features, OutputStr
 
 //下面我们以填充.rodata section 为例来了解如何使用上述类。相关代码如下所示。
 //[填写.rodata section示例代码]
-//首先，调用ElfWriter的StartRoData函数。返回值的类型是一个OutputStream对象
+//首先，调用ElfWriter的 StartRoData 函数。返回值的类型是一个OutputStream对象
 OutputStream* rodata = elf_writer->StartRoData();
 //调用OutputStream的WriteFully，写入数据
 rodata->WriteFully(.rodata section的数据)
-//然后调用ElfWriter的EndRoData结束对.rodata section的数据写入。EndRoData的参数
-//是要结束输入的OutputStream对象
+//然后调用ElfWriter的EndRoData结束对.rodata section的数据写入。
+//EndRoData的参数是要结束输入的OutputStream对象
 elf_writer->EndRoData(rodata)
 
 
@@ -140,7 +140,7 @@ void CreateOatWriters() {
 /*
 CreateOatWriters 函数中创建了用于输出Elf文件的 ElfWriter 以及 用于输出Oat信息的 OatWriter。
 注意，一个ElfWriter对象并未和一个OatWriter对象有直接关系，
-二者是通过在elf_writers_以及oat_writers_数组中的索引来关联的。以本章中的boot.oat为例。
+二者是通过在 elf_writers_ 以及 oat_writers_ 数组中的索引来关联的。以本章中的boot.oat为例。
 */
 
 
@@ -205,8 +205,8 @@ bool OatWriter::AddZippedDexFilesSource(ScopedFd&& zip_fd,
 										const char* location, 
 										CreateTypeLookupTable create_type_lookup_table) {
     /*输入参数 zip_fd 代表被打开的jar文件。下面的 ZipArchive::OpenFromFd函数用于处理这个文件。
-      zip_archives_ 类型为vector<unique_ptr<ZipArchive>>，其元素的类型为 ZipArchive，代
-      表一个Zip归档对象。通过ZipArchive相关函数可以读取zip文件中的内容。  
+      zip_archives_ 类型为vector<unique_ptr<ZipArchive>>，其元素的类型为 ZipArchive，代表一个Zip归档对象。
+      通过ZipArchive相关函数可以读取zip文件中的内容。  
 	  */
     zip_archives_.emplace_back(ZipArchive::OpenFromFd(zip_fd.release(), location, &error_msg));
     //下面的 zip_archive 代表上面打开的jar包文件

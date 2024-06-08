@@ -1,19 +1,28 @@
+//【详情参考 11.1.2】
+
 //[jni.h->JNIEnv声明]
 typedef _JNIEnv JNIEnv; //JNIEnv是_JNIEnv类的别名
 
 //_JNIENv类的声明
 struct _JNIEnv {
     const struct JNINativeInterface* functions;
+    
 #if defined(__cplusplus) //JNIEnv提供了非常多的功能函数
-    jint GetVersion()
-    { return functions->GetVersion(this); }//调用functions类的对应函数
-    jclass DefineClass(const char *name, jobject loader, const jbyte* buf, jsize bufLen)
-    { return functions->DefineClass(this, name, loader, buf, bufLen); }
-    jclass FindClass(const char* name)
-    { return functions->FindClass(this, name); }
+
+    jint GetVersion(){ 
+        return functions->GetVersion(this);  //调用functions类的对应函数
+    }
+    
+    jclass DefineClass(const char *name, jobject loader, const jbyte* buf, jsize bufLen){ 
+        return functions->DefineClass(this, name, loader, buf, bufLen); 
+    }
+    
+    jclass FindClass(const char* name){ 
+        return functions->FindClass(this, name); 
+    }
     ......//非常多的函数，实现方法和上面的类似，都是调用functions中同名的函数
 }
-//JNINativeInterface和上节中提到的JNIInvokeInterface有些类似，都是包含了很多函数指针的结构体。.
+//JNINativeInterface 和上节中提到的 JNIInvokeInterface 有些类似，都是包含了很多函数指针的结构体。.
 
 
 
@@ -47,7 +56,8 @@ JNIEnvExt* JNIEnvExt::Create(Thread* self_in, JavaVMExt* vm_in) {
 //构造函数
 //jni_env_ext.cc->JNIEnvExt::JNIEnvExt
 JNIEnvExt::JNIEnvExt(Thread* self_in, JavaVMExt* vm_in)
-        : self(self_in),vm(vm_in),local_ref_cookie(IRT_FIRST_SEGMENT), 
+        : 
+        self(self_in),vm(vm_in),local_ref_cookie(IRT_FIRST_SEGMENT), 
         locals(kLocals Initial, kLocalsMax, kLocal, false), 
         check_jni(false), 
         runtime_deleted(false),

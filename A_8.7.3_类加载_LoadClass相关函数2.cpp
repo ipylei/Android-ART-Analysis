@@ -6,7 +6,7 @@ void ClassLinker::LoadField(const ClassDataItemIterator& it,
 							ArtField* dst) {
     const uint32_t field_idx = it.GetMemberIndex();
 	
-    dst->SetDexFieldIndex(field_idx); //设置对应于dex文件里的那个 field_dex_idx_
+    dst->SetDexFieldIndex(field_idx);              //设置对应于dex文件里的那个 field_dex_idx_
     dst->SetDeclaringClass(klass.Get()); //设置本成员变量由哪个Class对象定义 => declaring_class_
     dst->SetAccessFlags(it.GetFieldAccessFlags()); //设置访问标记
 }

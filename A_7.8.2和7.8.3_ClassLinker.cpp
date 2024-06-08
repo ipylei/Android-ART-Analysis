@@ -56,6 +56,7 @@ bool ClassLinker::InitFromBootImage(std::string* error_msg) {
     const char* image_file_location = oat_files[0]->GetOatHeader().GetStoreValueByKey(OatHeader::kImageLocationKey);
     
     //获取各个 trampoline(蹦床) 函数的地址，这部分内容以后再介绍
+    //【10.1.2.4.3】 其实是来自oat文件头结构
     quick_resolution_trampoline_ = default_oat_header.GetQuickResolutionTrampoline();
 	quick_imt_conflict_trampoline_ = default_oat_header.GetQuickImtConflictTrampoline();
 	quick_generic_jni_trampoline_ = default_oat_header.GetQuickGenericJniTrampoline();
