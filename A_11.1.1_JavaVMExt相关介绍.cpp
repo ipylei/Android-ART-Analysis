@@ -114,7 +114,8 @@ JavaVMExt::JavaVMExt(Runtime* runtime,
 
 
 //由于Java native方法的真实实现是在 Native 层，而Native层的代码逻辑又往往封装在一个动态库文件中，
-//所以，JNI的一个重要工作就是加载一个包含了native方法实现的动态库文件。在ART虚拟机中，加载的核心函数就是JavaVMExt的 LoadNativeLibrary 函数。
+//所以，JNI的一个重要工作就是加载一个包含了native方法实现的动态库文件。
+//在ART虚拟机中，加载的核心函数就是JavaVMExt的 LoadNativeLibrary 函数。
 //[java_vm_ext.cc->JavaVMExt::LoadNativeLibrary]
 bool JavaVMExt::LoadNativeLibrary(JNIEnv* env,
                                 const std::string& path, 

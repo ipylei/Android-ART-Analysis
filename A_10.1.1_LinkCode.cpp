@@ -77,11 +77,11 @@ void ClassLinker::LinkCode(ArtMethod* method,
     
     
     //.JNI方法的情况，设置【jni机器码】入口
-    //【11.2】如果这个JNI方法没有注册过（即这个native方法还未和Native层对应的函数相关联），这个JNI机器码入口地址是art_jni_dlsym_lookup_stub。
+    //【11.2】如果这个JNI方法没有注册过（即这个native方法还未和Native层对应的函数相关联），这个JNI机器码入口地址是 art_jni_dlsym_lookup_stub。
     //否则，JNI机器码入口地址指向Native层对应的函数。
     if (method->IsNative()) {
-        /*如果为jni方法，则调用ArtMethod的UnregisterNative函数，其内部主要设置ArtMethod tls_ptr_sized_.entry_point_from_jni_
-          成员变量为跳转代码 art_jni_dlsym_lookup_stub ，
+        /*如果为jni方法，则调用ArtMethod 的 UnregisterNative 函数，
+          其内部主要设置 ArtMethod tls_ptr_sized_.entry_point_from_jni_ 成员变量为跳转代码 art_jni_dlsym_lookup_stub ，
           跳转目标为 artFindNativeMethod 函数。
           为简单起见，笔者以后用jni机器码入口地址指代 entry_point_from_jni_ 成员变量。这部分内容和JNI有关，我们以后再讨论它。
         */
@@ -98,20 +98,20 @@ void ClassLinker::LinkCode(ArtMethod* method,
 /*  总结
 
 非JNI方法
-    有机器码：机器码执行模式
-    无机器码：解释执行模式
+    有机器码：机器码执行模式 (机器码入口)
+    无机器码：解释执行模式： (机器码入口更新为：art_quick_to_interpreter_bridge)
 
 
 JNI方法
     有机器码：机器码入口为(一串汇编代码，本身会跳转到JNI机器码入口地址)
                 => jni机器码入口
-                    > 已注册：为 Native层函数
+                    > 已注册：为 Native 层函数
                     > 未注册：为 art_jni_dlsym_lookup_stub
                         1.bl artFindNativeMethod(注册Native层函数；返回Native层函数)
                         2.执行【Native层函数】
                     
               
-    无机器码：机器码入口为(art_quick_generic_jni_trampoline)
+    无机器码：机器码入口为(art_quick_generic_jni_trampoline 即通用蹦床)
                     1.bl artQuickGenericJniTrampoline(寻找并返回Native层函数地址，同时未注册的情况下还进行注册)
                     2.执行【Native层函数】
     

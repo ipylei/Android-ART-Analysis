@@ -83,7 +83,7 @@ static jint AttachCurrentThread(JavaVM* vm, JNIEnv** p_env, void* thr_args) {
         sc.CheckNonHeap(reinterpret_cast<JavaVMExt*>(vm), true, "vpp", args);
         JniValueType result;
         
-        //BaseVm将获取JavaVMExt的unchecked_functions对象，然后调用的它的AttachCurrentThread函数
+        //BaseVm()将获取JavaVMExt的 unchecked_functions 对象，然后调用的它的 AttachCurrentThread 函数
         result.i = BaseVm(vm)->AttachCurrentThread(vm, p_env, thr_args);
         
         //对调用结果进行检查

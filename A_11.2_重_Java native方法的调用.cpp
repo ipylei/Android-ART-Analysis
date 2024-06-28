@@ -47,6 +47,7 @@ extern "C" void* artFindNativeMethod(Thread* self) {
         /*如果存在满足条件的目标函数，则更新 ArtMethod 对象的JNI机器码入口地址，
           此后再调用这个Java native方法，则无须借助 art_jni_dlsym_lookup_stub。  
         */
+        //【A_8.2_初识JNI相关辅助类】
         method->RegisterNative(native_code, false);
         return native_code;
     }
@@ -72,17 +73,17 @@ DEFINE_FUNCTION art_quick_generic_jni_trampoline {
     */
     subl LITERAL(5120), %esp
     subl LITERAL(8), %esp
-    pushl %ebp //为调用下面的 artQuickGenericJniTrampoline 函数准备参数
-    pushl %fs:THREAD_SELF_OFFSET      //获取代表当前调用线程的Thread对象
-    //调用artQuickGenericJniTrampoline函数。
-    call SYMBOL(artQuickGenericJniTrampoline)
-     //artQuickGenericJniTrampoline函数返回值通过EAX和EDX两个寄存器返回
+    pushl %ebp                                //为调用下面的 artQuickGenericJniTrampoline 函数准备参数
+    pushl %fs:THREAD_SELF_OFFSET              //获取代表当前调用线程的Thread对象
+    call SYMBOL(artQuickGenericJniTrampoline) //调用artQuickGenericJniTrampoline函数。
+    
+    //artQuickGenericJniTrampoline 函数返回值通过EAX和EDX两个寄存器返回
     //如果EAX的值为0，则表示有异常发生
     test %eax, %eax
+    
     jz .Lexception_in_native //有异常发生，转到对应位置去处理
     //如果EAX的值不为0，则EAX的内容就是目标Native函数的地址，而EDX则指向该函数对应参数的栈
-    //空间位置。下面的指令将把EDX的值赋给ESP寄存器，此后，ESP所指的栈空间存储的就是Native函
-    //数所需的参数
+    //空间位置。下面的指令将把EDX的值赋给ESP寄存器，此后，ESP所指的栈空间存储的就是Native函数所需的参数
     movl %edx, %esp
     call *%eax //【* 重点】调用Native函数
     
@@ -162,7 +163,7 @@ extern "C" TwoWordReturn artQuickGenericJniTrampoline(Thread* self, ArtMethod** 
     void* nativeCode = called->GetEntryPointFromJni();
     if (nativeCode == GetJniDlsymLookupStub()) {
 #if defined(__arm__) || defined(__aarch64__)
-    ......
+    nativeCode = artFindNativeMethod();
 #else
     /*这里要特别注意，上文介绍 art_jni_dlsym_lookup_stub 函数的内容时，
       我们发现如果调用 stub 函数的话能直接转到对应Native函数去执行（假设存在目标Native函数）。

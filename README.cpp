@@ -101,8 +101,8 @@ app_main.cpp->main() {
 
                                     //②关键函数之二
                                     bool init_success = self->Init(runtime->GetThreadList(), runtime->GetJavaVM()){
-                                        //每一个线程将关联一个JNIEnvExt对象，它存储在 tlsPtr_jni_env 变量中。对主线程而言，
-                                        //JNIEnvExt对象由Runtime创建并传给代表主线程的Thread对象，也就是此处分析的Thread对象
+                                        //每一个线程将关联一个JNIEnvExt对象，它存储在 tlsPtr_.jni_env 变量中。
+                                        //对主线程而言，JNIEnvExt对象由Runtime创建并传给代表主线程的Thread对象，也就是此处分析的Thread对象
                                         if (jni_env_ext != nullptr) {
                                             tlsPtr_.jni_env = jni_env_ext;
                                         } else { 
@@ -198,6 +198,7 @@ app_main.cpp->main() {
 
 
 //【8.7.5 类加载入口】
+// A_8.7.9.1_Java层ClassLoader相关类介绍 
 ClassLoader //含有loadClass(String name)函数
 	BootClassLoader     //含有findClass(String name)函数
 	BaseDexClassLoader  //含有findClass(String name)函数
@@ -220,47 +221,52 @@ public Class<?>  ClassLoader::loadClass(String name){
 			//【java/dalvik/system/DexPathList.java】
             public Class DexPathList::findClass(String name, List<Throwable> suppressed) {
                 
-				//Class clazz = dex.loadClassBinaryName(name, definingContext, suppressed);
-				public Class DexFile::loadClassBinaryName(String name, ClassLoader loader, List<Throwable> suppressed) {
+                element.findClass(String name, ClassLoader definingContext, List<Throwable> suppressed){
                     
-					//defineClass(name, loader, mCookie, this, suppressed);    其中:mCookie = openDexFile(fileName, null, 0, loader, elements);
-                        //【*】openDexFile > DexFile_openDexFileNative >  runtime->GetOatFileManager().OpenDexFilesFromOat() 即从oat文件中找到指定的dex文件
-                    //【java/dalvik/system/DexFile.java】
-					private static Class DexFile::defineClass(String name, ClassLoader loader, Object cookie,  DexFile dexFile, List<Throwable> suppressed) {
-						
-                        //result = defineClassNative(name, loader, cookie, dexFile);
-						//private static native Class DexFile::defineClassNative(String name, ClassLoader loader, Object cookie, DexFile dexFile)
-						//【dalvik_system_DexFile.cc】
-						static jclass DexFile_defineClassNative(JNIEnv* env,
-															  jclass,
-															  jstring javaName,
-															  jobject javaLoader,
-															  jobject cookie,
-															  jobject dexFile) {
-                                                                  
-                            ClassLinker* class_linker = Runtime::Current()->GetClassLinker();                                      
-                            class_linker->RegisterDexFile(*dex_file, class_loader.Get()){
-                                ClassTable* table;
-                                //给classLoader对象创建一个classTable对象
-                                table = InsertClassTableForClassLoader(class_loader);
-                                //将DexCache对象存入ClassTable的strong_roots_ 中 (std::vector<GcRoot<mirror::Object>>)
-                                table->InsertStrongRoot(h_dex_cache.Get());
-                            }                                
-                                                                  
-                            //【8.7.5 类加载入口】                                                
-							mirror::Class* result = class_linker->DefineClass(soa.Self(),
-																			  descriptor.c_str(),
-																			  hash,
-																			  class_loader,
-																			  *dex_file,
-																			  *dex_class_def);	
-
-
-                            class_linker->InsertDexFileInToClassLoader(soa.Decode<mirror::Object*>(dexFile), class_loader.Get());                                                                            
+                    //Class clazz = dex.loadClassBinaryName(name, definingContext, suppressed);
+                    public Class DexFile::loadClassBinaryName(String name, ClassLoader loader, List<Throwable> suppressed) {
+                        
+                        //defineClass(name, loader, mCookie, this, suppressed);    
+                            //其中:mCookie = openDexFile(fileName, null, 0, loader, elements);
+                            //【*】openDexFile > DexFile_openDexFileNative 
+                            //                 > runtime->GetOatFileManager().OpenDexFilesFromOat() 即从oat文件中找到指定的dex文件
+                        //【java/dalvik/system/DexFile.java】
+                        private static Class DexFile::defineClass(String name, ClassLoader loader, Object cookie,  DexFile dexFile, List<Throwable> suppressed) {
                             
+                            //result = defineClassNative(name, loader, cookie, dexFile);
+                            //private static native Class DexFile::defineClassNative(String name, ClassLoader loader, Object cookie, DexFile dexFile)
+                            //【dalvik_system_DexFile.cc】
+                            static jclass DexFile_defineClassNative(JNIEnv* env,
+                                                                  jclass,
+                                                                  jstring javaName,
+                                                                  jobject javaLoader,
+                                                                  jobject cookie,
+                                                                  jobject dexFile) {
+                                                                      
+                                ClassLinker* class_linker = Runtime::Current()->GetClassLinker();                                      
+                                class_linker->RegisterDexFile(*dex_file, class_loader.Get()){
+                                    ClassTable* table;
+                                    //给classLoader对象创建一个classTable对象
+                                    table = InsertClassTableForClassLoader(class_loader);
+                                    //将DexCache对象存入ClassTable的strong_roots_ 中 (std::vector<GcRoot<mirror::Object>>)
+                                    table->InsertStrongRoot(h_dex_cache.Get());
+                                }                                
+                                                                      
+                                //【8.7.5 类加载入口】                                                
+                                mirror::Class* result = class_linker->DefineClass(soa.Self(),
+                                                                                  descriptor.c_str(),
+                                                                                  hash,
+                                                                                  class_loader,
+                                                                                  *dex_file,
+                                                                                  *dex_class_def);	
+
+
+                                class_linker->InsertDexFileInToClassLoader(soa.Decode<mirror::Object*>(dexFile), class_loader.Get());                                                                            
+                                
+                            }
                         }
-					}
-				}
+                    }
+                }
 			}
 		}
 	}
@@ -288,7 +294,10 @@ mirror::Class* ClassLinker::DefineClass(Thread* self,
     //插入ClassLoader对应的ClassTable的classes_中 (std::vector<ClassSet> classes_ GUARDED_BY(lock_);)
     //注意，不同的线程可以同时调用DefineClass来加载同一个类。这种线程同步直接的关系要处理好。
     mirror::Class* existing = InsertClass(descriptor, klass.Get(), hash);
-	
+	if (existing != nullptr) {
+        return EnsureResolved(self, descriptor, existing);
+    }
+    
 	//[class_linker.cc->ClassLinker::LoadClass]
 	//【8.7.3 类加载_相关函数1】 【Status】：kStatusLoaded
 	void ClassLinker::LoadClass(Thread * self,
@@ -306,7 +315,7 @@ mirror::Class* ClassLinker::DefineClass(Thread* self,
 											
 											
 			//遍历 class_data_item 中的静态成员变量数组，然后填充信息到 sfields 数组里
-			 for (; it.HasNextStaticField(); it.Next()) {
+			for (; it.HasNextStaticField(); it.Next()) {
 				LoadField(it, klass, &sfields->At(num_sfields));
 			}	
 			 
@@ -667,8 +676,8 @@ http://aospxref.com/android-7.0.0_r7/xref/art/runtime/arch/arm64/jni_entrypoints
 http://aospxref.com/android-7.0.0_r7/xref/art/runtime/arch/arm64/quick_entrypoints_arm64.S
 
 非JNI方法
-    有机器码：机器码执行模式
-    无机器码：解释执行模式
+    有机器码：机器码执行模式 (机器码入口)
+    无机器码：解释执行模式： (机器码入口更新为：art_quick_to_interpreter_bridge)
 
 JNI方法
     有机器码：机器码入口为(一串汇编代码，本身会跳转到JNI机器码入口地址)

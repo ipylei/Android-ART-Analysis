@@ -474,7 +474,7 @@ void ArtMethod::Invoke(Thread* self,
         if (LIKELY(have_quick_code)) {
             //如果是非静态函数，则调用 art_quick_invoke_stub 函数，
             //否则调用 art_quick_invoke_static_stub 函数。
-            //这两个函数也是由汇编代码编写。我们看其中的art_quick_invoke_stub函数。
+            //这两个函数也是由汇编代码编写。我们看其中的 art_quick_invoke_stub 函数。
             if (!IsStatic()) {
                 (*art_quick_invoke_stub)(this, args, args_size, self, result, shorty);
             } 

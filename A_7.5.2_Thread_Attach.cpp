@@ -152,8 +152,8 @@ bool Thread::Init(ThreadList * thread_list, JavaVMExt * java_vm, JNIEnvExt * jni
     
     tls32_.thin_lock_thread_id = thread_list->AllocThreadId(this);
     
-    //每一个线程将关联一个JNIEnvExt对象，它存储在 tlsPtr_jni_env 变量中。对主线程而言，
-    //JNIEnvExt对象由Runtime创建并传给代表主线程的Thread对象，也就是此处分析的Thread对象
+    //每一个线程将关联一个JNIEnvExt对象，它存储在 tlsPtr_jni_env 变量中。
+    //对主线程而言，JNIEnvExt对象由Runtime创建并传给代表主线程的Thread对象，也就是此处分析的Thread对象
     if (jni_env_ext != nullptr) {
         tlsPtr_.jni_env = jni_env_ext;
     } else { 

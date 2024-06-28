@@ -7,14 +7,14 @@ void ClassLinker::LoadField(const ClassDataItemIterator& it,
     const uint32_t field_idx = it.GetMemberIndex();
 	
     dst->SetDexFieldIndex(field_idx);              //设置对应于dex文件里的那个 field_dex_idx_
-    dst->SetDeclaringClass(klass.Get()); //设置本成员变量由哪个Class对象定义 => declaring_class_
+    dst->SetDeclaringClass(klass.Get());           //设置本成员变量由哪个Class对象定义 => declaring_class_
     dst->SetAccessFlags(it.GetFieldAccessFlags()); //设置访问标记
 }
 
 
 
 
-//8.7.3.1.3　LoadMethod
+//8.7.3.1.3　LoadMethod：加载ArtMethod对象，并将其和字节码关联起来。
 //接着来看成员方法的加载，代码如下所示。
 //[class_linker.cc->ClassLinker::LoadMethod]
 void ClassLinker::LoadMethod(Thread* self,
