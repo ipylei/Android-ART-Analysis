@@ -1,7 +1,7 @@
 //8.7.8.1　Resolve相关函数
 
 
-//8.7.8.1.1　ResolveType  【寻找类，并保存到DexCache对象中】
+//8.7.8.1.1　ResolveType  【寻找类，并保存到 DexCache 对象中】
 //[class_linker.h->ClassLinker::ResolveType]
 mirror::Class* ClassLinker::ResolveType(const DexFile& dex_file,
                                         uint16_t type_idx,
@@ -137,7 +137,7 @@ ArtMethod* ClassLinker::ResolveMethod(const DexFile& dex_file,
         }
     }
     if (LIKELY(resolved != nullptr && !resolved->CheckIncompatibleClassChange(type))) {
-        //如果找到这个方法，则将其存到dex_cache对象中，以method_idx为索引，存储在它的resolved_methods_成员中
+        //如果找到这个方法，则将其存到 dex_cache 对象中，以method_idx为索引，存储在它的 resolved_methods_ 成员中
         dex_cache->SetResolvedMethod(method_idx, resolved, image_pointer_size_);
         return resolved;
     } else { 
@@ -167,18 +167,19 @@ mirror::String* ClassLinker::ResolveString(const DexFile& dex_file,
     dex_cache->SetResolvedString(string_idx, string);      //存储到dex_cache里
     return string;
 }
-/*
-到此，类的Resolve相关函数介绍到此，总而言之，dex文件里使用的type_id、method_id、string_id等都是索引。
+
+
+/*到此，类的Resolve相关函数介绍到此，总而言之，dex文件里使用的type_id、method_id、string_id等都是索引。
 这些索引所指向的信息需要分别被找到。而解析的目的就是如下所示。
-·根据type_id找到它对应的mirror Class对象。
-·根据method_id找到对应的ArtMethod对象。
-·根据string_id找到对应的mirror String对象。最后，所有解析出来的信息都将存在该dex文件对应的一个DexCache对象中。
+·根据 type_id 找到它对应的 mirror Class 对象。
+·根据 method_id 找到对应的 ArtMethod 对象。
+·根据 string_id 找到对应的 mirror String 对象。最后，所有解析出来的信息都将存在该dex文件对应的一个DexCache对象中。
 其中，解析type id和method id的时候可能触发目标类的加载和链接过程。这是通过下节将介绍的 FindClass 来完成的。
 */
 
 
 
-//8.7.8.1.4 ResolveField 【寻找成员，并保存到DexCache对象中】
+//8.7.8.1.4 ResolveField 【寻找成员，并保存到 DexCache 对象中】
 //最后来看一下ResolveField，它也比较简单。 
 //[class_linker.cc->ClassLinker::ResolveField]
 ArtField* ClassLinker::ResolveField(const DexFile& dex_file,

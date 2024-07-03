@@ -35,7 +35,7 @@ struct type_id_item{
 }
 
 
-//属性，类似于 ArtField
+//属性，对应为 ArtField
 struct field_id_item{
     //(类型) 所属类
     ushort class_idx;        //指向 type_ids 的索引，即对应 type_id_item
@@ -46,7 +46,7 @@ struct field_id_item{
 }
 
 
-//方法，类似于 ArtMethod
+//方法，对应为 ArtMethod
 struct method_id_item{
     //(类型)    所属类
     ushort class_idx;        //指向 type_ids 的索引，即对应 type_id_item
@@ -59,10 +59,10 @@ struct method_id_item{
 
 //方法签名类型：描述成员函数的参数、返回值类型
 struct proto_id_item{
-    //(字符串)  (简单描述)参数和返回值的类型的简单描述，比如所有引用类型都用"L"统一表示
-    uint shorty_idx;         //指向string_ids的索引，即对应 string_id_item
+    //(字符串)  (简短描述)参数和返回值的类型的简单描述，比如所有引用类型都用"L"统一表示
+    uint shorty_idx;         //指向 string_ids 的索引，即对应 string_id_item
     //(类型)    (具体描述)返回值类型
-    uint return_type_idx;    //指向type_ids的索引，即对应 type_id_item
+    uint return_type_idx;    //指向 type_ids 的索引，即对应 type_id_item
     //(多类型2) (具体描述)参数类型
     uint parameters_off;     //不为0，存储 type_list 的结构，用于描述函数参数的类型。
 }
@@ -147,32 +147,30 @@ stuct code_item{
 
 
 stuct code_item{
-    ushort regisrers_size;             //此函数需要用到的寄存器个数。
-    ushort ins_size;                   //输入参数所占空间，以双字节为单位
- 
     /*
     registers_size和ins_size进一步说明
     （1）registers_size：指的是虚拟寄存器的个数。在art中，dex字节码会被编译成本机机器码，此处的寄存器并非物理寄存器。
     （2）ins_size：Dex官方文档的解释是the number of words of incoming arguments to the method that this code is for，
                    而在art优化器相关代码中，ins_size 即是函数输入参数个数，同时也是输入参数占据虚拟寄存器的个数。
-                   registers_size-ins_size 即为函数内部创建变量的个数。
+                   (registers_size - ins_size 即为函数内部创建变量的个数。
     */ 
-        
+    ushort regisrers_size;             //此函数需要用到的寄存器个数。
+    ushort ins_size;                   //输入参数所占空间，以双字节为单位  
     ushort out_size;                   //该函数表示内部调用其他函数时，所需参数占用的空间。同样以双字节为单位
     
     //· tries_size 和 tries 数组：如果该函数内部有try语句块，则tries_size和tries数组用于描述try语句块相关的信息。
-    //注意，tries 数组是可选项，如果tries_size为0，则此code_item不包含tries数组。
+    //注意，tries 数组是可选项，如果 tries_size 为 0，则此code_item不包含tries数组。
     ushort tries_size;                 //①
-    try_item[] tries;                  //①
-    ushort padding;                    //① 用于将tries数组（如果有，并且insns_size是奇数长度的话）进行4字节对齐。
+    [*]try_item[] tries;               //①
+    [*]ushort padding;                 //① 用于将tries数组（如果有，并且insns_size是奇数长度的话）进行4字节对齐。
     
-    uint debug_info_size;
+    uint debug_info_off;
     
     uint insns_size;                   //指令码数组的长度
     ushort[] insns;                    //指令码的内容。Dex文件格式中JVM指令码长度为2个字节，而Class文件中JVM指令码长度为1个字节
                                        //低8位才是指令码，高8位是参数
         
-    encode_catch_handler_list handlers; //catch语句对应的内容，也是可选项。如果tries_size不为零才有handlers域。
+    [*]encode_catch_handler_list handlers; //catch语句对应的内容，也是可选项。如果tries_size不为零才有handlers域。
 }
 
 

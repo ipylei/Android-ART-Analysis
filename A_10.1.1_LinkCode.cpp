@@ -111,7 +111,7 @@ JNI方法
                         2.执行【Native层函数】
                     
               
-    无机器码：机器码入口为(art_quick_generic_jni_trampoline 即通用蹦床)
+    无机器码：机器码入口设置为(art_quick_generic_jni_trampoline 即通用蹦床)
                     1.bl artQuickGenericJniTrampoline(寻找并返回Native层函数地址，同时未注册的情况下还进行注册)
                     2.执行【Native层函数】
     

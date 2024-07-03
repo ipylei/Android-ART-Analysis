@@ -90,7 +90,7 @@ app_main.cpp->main() {
                                 java_vm_ = new JavaVMExt(this, runtime_options);
                                 
                                 //关键模块之Thread
-                                //下面两个函数调用Thread类的Startup和Attach以初始化虚拟机主线程
+                                //下面两个函数调用Thread类的 Startup 和 Attach 以初始化虚拟机主线程
                                 //【章节7.5.1】
                                 Thread::Startup();
                                 //[*] [thread.cc->Thread::Attach]
@@ -452,7 +452,7 @@ mirror::Class* ClassLinker::DefineClass(Thread* self,
 
 
 
-//【8.7.7 类初始化】
+//【8.7.7 类初始化、校验】
 //[class_linker.cc->ClassLinker::InitializeClass]
 bool ClassLinker::InitializeClass(Thread* self, 
                                   Handle<mirror::Class> klass,
@@ -479,6 +479,20 @@ bool ClassLinker::InitializeClass(Thread* self,
 																	const DexFile::ClassDef* class_def,
 																	ClassDataItemIterator* it,
 																	...) {
+                                                                        
+                 //【8.7.8】 调用ClassLinker的 ResolveMethod 进行解析
+                 //【寻找目标方法，并保存到 DexCache 对象中】
+                 ArtMethod* method = linker->ResolveMethod<ClassLinker::kNoICCECheckForCache>(*dex_file, 
+                                                                                                method_idx,
+                                                                                                dex_cache,
+                                                                                                class_loader, 
+                                                                                                nullptr, 
+                                                                                                type){
+                    mirror::Class* klass = ResolveType(dex_file, method_id.class_idx_, dex_cache, class_loader);                                                                                
+                }
+                
+                //调用另外一个VerifyMethod函数，其代码见下文
+                MethodVerifier::FailureData result = VerifyMethod(self,method_idx,...);                                                                                        
 			}
 		}
         

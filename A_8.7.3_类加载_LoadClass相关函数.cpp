@@ -53,7 +53,7 @@ void ClassLinker::LoadClassMembers(Thread * self,
             if (num_sfields == 0 || LIKELY(field_idx > last_field_idx)) {
                 
 				//加载这个 ArtField 的内容。下文将单独介绍此函数
-				//【*】加载并设置到ArtField
+				//【*】加载并设置到 ArtField
                 LoadField(it, klass, &sfields->At(num_sfields));
                 
 				++num_sfields;
@@ -108,7 +108,7 @@ void ClassLinker::LoadClassMembers(Thread * self,
             ArtMethod * method = klass->GetDirectMethodUnchecked(i, image_pointer_size_);
 			
 			//【*】加载并设置到ArtMethod
-            //加载ArtMethod对象，并将其和字节码关联起来。
+            //加载 ArtMethod 对象，并将其和字节码关联起来。
             LoadMethod(self, dex_file, it, klass, method);
             //注意，oat_class 信息只在LinkCode中用到。LinkCode留待10.1节介绍
             LinkCode(method, oat_class, class_def_method_index);

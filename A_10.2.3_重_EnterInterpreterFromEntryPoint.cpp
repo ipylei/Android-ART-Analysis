@@ -116,7 +116,7 @@ static inline JValue Execute(Thread* self,
                 return ExecuteSwitchImpl<false, false>(self, code_item, shadow_frame, result_register, false);
             }
         } 
-        //kInterpreterImplKind取值为 kComputedGotoImplKind 的情况
+        //kInterpreterImplKind 取值为 kComputedGotoImplKind 的情况
         //(3)由C++编写，基于goto逻辑实现
         else {　
             if (transaction_active) {
@@ -247,7 +247,7 @@ static inline bool DoInvoke(Thread* self,
     ArtMethod* sf_method = shadow_frame.GetMethod();
     
     /*FindMethodFromCode 用于查找代表目标[方法C]对应的ArtMethod对象，即ArtMethod* C。其内
-    部会根据do_access_check的情况检查方法B是否有权限调用方法C。
+    部会根据 do_access_check 的情况检查方法B是否有权限调用方法C。
       注意，FindMethodFromCode 函数是根据不同调用类型（kStatic、kDirect、kVirtual、kSuper、kInterface）
       以找到对应的ArtMethod对象的关键代码。这部分内容请读者自行阅读。
     */
@@ -366,12 +366,12 @@ static inline bool DoCallCommon(ArtMethod* called_method,
         } 
         else {
             //如果可以用机器码方式执行方法C，则调用ArtInterpreterToCompiledCodeBridge，
-            //它将从【解释执行模式】进入【机器码执行模式】。
+            //它将从【解释执行】模式进入【机器码执行】模式。
             ArtInterpreterToCompiledCodeBridge(self, shadow_frame.GetMethod(), code_item,new_shadow_frame, result);
         }
     } 
     else { 
-        //dex2oat中的处理。因为dex2oat要执行诸如类的初始化方法"<clinit>"，这些方法【都】采用解释执行模式来处理的。
+        //dex2oat中的处理。因为dex2oat要执行诸如类的初始化方法"<clinit>"，这些方法【都】采用【解释执行】模式来处理的。
         //内部： ArtInterpreterToInterpreterBridge(self, code_item, shadow_frame, result);
         UnstartedRuntime::Invoke(self, code_item, new_shadow_frame, result, first_dest_reg)
     }
@@ -406,7 +406,7 @@ void ArtInterpreterToInterpreterBridge(Thread* self,
         }
     }
     
-    //如果不是JNI方法，则调用Execute执行该方法。Execute函数我们在【10.2.3】节介绍过它了。
+    //如果不是JNI方法，则调用 Execute 执行该方法。Execute函数我们在【10.2.3】节介绍过它了。
     if (LIKELY(!shadow_frame->GetMethod()->IsNative())) {
         result->SetJ(Execute(self, code_item, *shadow_frame, JValue()).GetJ());
     } 
@@ -472,8 +472,7 @@ void ArtMethod::Invoke(Thread* self,
         bool have_quick_code = GetEntryPointFromQuickCompiledCode() != nullptr;
         
         if (LIKELY(have_quick_code)) {
-            //如果是非静态函数，则调用 art_quick_invoke_stub 函数，
-            //否则调用 art_quick_invoke_static_stub 函数。
+            //如果是非静态函数，则调用 art_quick_invoke_stub 函数，否则调用 art_quick_invoke_static_stub 函数。
             //这两个函数也是由汇编代码编写。我们看其中的 art_quick_invoke_stub 函数。
             if (!IsStatic()) {
                 (*art_quick_invoke_stub)(this, args, args_size, self, result, shorty);
@@ -509,3 +508,167 @@ art_quick_invoke_stub 虽然是由汇编代码编写，但其内容相对比较�
     ·该方法的机器码执行完后将返回到 art_quick_invoke_stub 执行。此时，art_quick_invoke_stub 将把执行结果存储到result位置。
     ·当调用流程从 art_quick_invoke_stub 返回后，解释执行的处理逻辑就得到了方法C机器码执行的结果。
 */
+
+
+
+
+
+// 
+//[entrypoint_utils-inl.h]
+template<InvokeType type, bool access_check>  //type=kDirect， access_check=false
+inline ArtMethod* FindMethodFromCode(uint32_t method_idx, mirror::Object** this_object,
+                                     ArtMethod* referrer, Thread* self) {
+  ClassLinker* const class_linker = Runtime::Current()->GetClassLinker();
+  ArtMethod* resolved_method = class_linker->GetResolvedMethod(method_idx, referrer);
+  if (resolved_method == nullptr) {
+    StackHandleScope<1> hs(self);
+    mirror::Object* null_this = nullptr;
+    HandleWrapper<mirror::Object> h_this(
+        hs.NewHandleWrapper(type == kStatic ? &null_this : this_object));
+    constexpr ClassLinker::ResolveMode resolve_mode =
+        access_check ? ClassLinker::kForceICCECheck
+                     : ClassLinker::kNoICCECheckForCache;
+    resolved_method = class_linker->ResolveMethod<resolve_mode>(self, method_idx, referrer, type);
+  }
+  if (UNLIKELY(resolved_method == nullptr)) {
+    DCHECK(self->IsExceptionPending());  // Throw exception and unwind.
+    return nullptr;  // Failure.
+  } 
+  else if (UNLIKELY(*this_object == nullptr && type != kStatic)) {
+    if (UNLIKELY(resolved_method->GetDeclaringClass()->IsStringClass() &&
+                 resolved_method->IsConstructor())) {
+      // Hack for String init:
+      //
+      // We assume that the input of String.<init> in verified code is always
+      // an unitialized reference. If it is a null constant, it must have been
+      // optimized out by the compiler. Do not throw NullPointerException.
+    } else {
+      // Maintain interpreter-like semantics where NullPointerException is thrown
+      // after potential NoSuchMethodError from class linker.
+      ThrowNullPointerExceptionForMethodAccess(method_idx, type);
+      return nullptr;  // Failure.
+    }
+  } 
+  else if (access_check) {
+    mirror::Class* methods_class = resolved_method->GetDeclaringClass();
+    bool can_access_resolved_method =
+        referrer->GetDeclaringClass()->CheckResolvedMethodAccess<type>(methods_class,
+                                                                       resolved_method,
+                                                                       method_idx);
+    if (UNLIKELY(!can_access_resolved_method)) {
+      DCHECK(self->IsExceptionPending());  // Throw exception and unwind.
+      return nullptr;  // Failure.
+    }
+    // Incompatible class change should have been handled in resolve method.
+    if (UNLIKELY(resolved_method->CheckIncompatibleClassChange(type))) {
+      ThrowIncompatibleClassChangeError(type, resolved_method->GetInvokeType(), resolved_method,
+                                        referrer);
+      return nullptr;  // Failure.
+    }
+  }
+  switch (type) {
+    case kStatic:
+    case kDirect:
+      return resolved_method;
+    case kVirtual: {
+      mirror::Class* klass = (*this_object)->GetClass();
+      uint16_t vtable_index = resolved_method->GetMethodIndex();
+      if (access_check &&
+          (!klass->HasVTable() ||
+           vtable_index >= static_cast<uint32_t>(klass->GetVTableLength()))) {
+        // Behavior to agree with that of the verifier.
+        ThrowNoSuchMethodError(type, resolved_method->GetDeclaringClass(),
+                               resolved_method->GetName(), resolved_method->GetSignature());
+        return nullptr;  // Failure.
+      }
+      DCHECK(klass->HasVTable()) << PrettyClass(klass);
+      return klass->GetVTableEntry(vtable_index, class_linker->GetImagePointerSize());
+    }
+    case kSuper: {
+      // TODO This lookup is quite slow.
+      // NB This is actually quite tricky to do any other way. We cannot use GetDeclaringClass since
+      //    that will actually not be what we want in some cases where there are miranda methods or
+      //    defaults. What we actually need is a GetContainingClass that says which classes virtuals
+      //    this method is coming from.
+      mirror::Class* referring_class = referrer->GetDeclaringClass();
+      uint16_t method_type_idx = referring_class->GetDexFile().GetMethodId(method_idx).class_idx_;
+      mirror::Class* method_reference_class = class_linker->ResolveType(method_type_idx, referrer);
+      if (UNLIKELY(method_reference_class == nullptr)) {
+        // Bad type idx.
+        CHECK(self->IsExceptionPending());
+        return nullptr;
+      } else if (!method_reference_class->IsInterface()) {
+        // It is not an interface. If the referring class is in the class hierarchy of the
+        // referenced class in the bytecode, we use its super class. Otherwise, we throw
+        // a NoSuchMethodError.
+        mirror::Class* super_class = nullptr;
+        if (method_reference_class->IsAssignableFrom(referring_class)) {
+          super_class = referring_class->GetSuperClass();
+        }
+        uint16_t vtable_index = resolved_method->GetMethodIndex();
+        if (access_check) {
+          // Check existence of super class.
+          if (super_class == nullptr ||
+              !super_class->HasVTable() ||
+              vtable_index >= static_cast<uint32_t>(super_class->GetVTableLength())) {
+            // Behavior to agree with that of the verifier.
+            ThrowNoSuchMethodError(type, resolved_method->GetDeclaringClass(),
+                                   resolved_method->GetName(), resolved_method->GetSignature());
+            return nullptr;  // Failure.
+          }
+        }
+        DCHECK(super_class != nullptr);
+        DCHECK(super_class->HasVTable());
+        return super_class->GetVTableEntry(vtable_index, class_linker->GetImagePointerSize());
+      } else {
+        // It is an interface.
+        if (access_check) {
+          if (!method_reference_class->IsAssignableFrom((*this_object)->GetClass())) {
+            ThrowIncompatibleClassChangeErrorClassForInterfaceSuper(resolved_method,
+                                                                    method_reference_class,
+                                                                    *this_object,
+                                                                    referrer);
+            return nullptr;  // Failure.
+          }
+        }
+        // TODO We can do better than this for a (compiled) fastpath.
+        ArtMethod* result = method_reference_class->FindVirtualMethodForInterfaceSuper(
+            resolved_method, class_linker->GetImagePointerSize());
+        // Throw an NSME if nullptr;
+        if (result == nullptr) {
+          ThrowNoSuchMethodError(type, resolved_method->GetDeclaringClass(),
+                                 resolved_method->GetName(), resolved_method->GetSignature());
+        }
+        return result;
+      }
+    }
+    case kInterface: {
+      uint32_t imt_index = resolved_method->GetDexMethodIndex() % mirror::Class::kImtSize;
+      ArtMethod* imt_method = (*this_object)->GetClass()->GetEmbeddedImTableEntry(
+          imt_index, class_linker->GetImagePointerSize());
+      if (!imt_method->IsRuntimeMethod()) {
+        if (kIsDebugBuild) {
+          mirror::Class* klass = (*this_object)->GetClass();
+          ArtMethod* method = klass->FindVirtualMethodForInterface(
+              resolved_method, class_linker->GetImagePointerSize());
+          CHECK_EQ(imt_method, method) << PrettyMethod(resolved_method) << " / " <<
+              PrettyMethod(imt_method) << " / " << PrettyMethod(method) << " / " <<
+              PrettyClass(klass);
+        }
+        return imt_method;
+      } else {
+        ArtMethod* interface_method = (*this_object)->GetClass()->FindVirtualMethodForInterface(
+            resolved_method, class_linker->GetImagePointerSize());
+        if (UNLIKELY(interface_method == nullptr)) {
+          ThrowIncompatibleClassChangeErrorClassForInterfaceDispatch(resolved_method,
+                                                                     *this_object, referrer);
+          return nullptr;  // Failure.
+        }
+        return interface_method;
+      }
+    }
+    default:
+      LOG(FATAL) << "Unknown invoke type " << type;
+      return nullptr;  // Failure.
+  }
+}
