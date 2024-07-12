@@ -8,9 +8,13 @@
 
 
 //【art虚拟机创建、启动流程】
-//注：其实就是zygote进程启动所执行的流程，然后该进程里就有了art虚拟机环境，后面的app程序都是由zygote fork而来，所以也同样包含art虚拟机环境
+//注：其实就是 zygote 进程启动所执行的流程，然后该进程里就有了art虚拟机环境，
+//后面的app程序都是由zygote fork而来，所以也同样包含art虚拟机环境
 app_main.cpp->main() {
-
+    
+    //AppRuntime是一个类，定义在app_main.cpp中。其基类是 AndroidRuntime
+    AppRuntime runtime(argv[0], computeArgBlockSize(argc, argv));
+    
     //调用基类AndroidRuntime的start函数 
     //[*]runtime.start("com.android.internal.os.ZygoteInit", args, zygote)
     //【章节7.1】
@@ -137,6 +141,9 @@ app_main.cpp->main() {
                         }
 
                     }
+                    
+                    //获取刚创建的Runtime对象
+                    Runtime* runtime = Runtime::Current();
 
                     //【② 第8章】启动Runtime。注意，这部分内容留待下一章介绍
                     //【章节8.1】
@@ -670,7 +677,8 @@ int main(int argc, char** argv) {
 				}
 			}
 			
-		} else {
+		} 
+        else {
 			//编译app，但不生成art文件（即镜像文件）。其内容和CompileImage差不多，只是少了生成.art文件的步骤。
 			result = CompileApp(*dex2oat);
 		}

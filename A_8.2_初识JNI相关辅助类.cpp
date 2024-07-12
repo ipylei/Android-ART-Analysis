@@ -259,6 +259,7 @@ static jobject NewGlobalRef(JNIEnv* env, jobject obj) {
 //[java_vm_ext.cc->JavaVMExt::AddGlobalRef]
 jobject JavaVMExt::AddGlobalRef(Thread* self, mirror::Object* obj) {
     if (obj == nullptr) { return nullptr;}
+    
     WriterMutexLock mu(self, globals_lock_);
     /*globals_ 是JavaVMExt的成员变量，其类型是 IndirectReferenceTable。
     如其名所示，它是一个容器，可以通过Add往里边添加元素。返回值的类型是 IndirectRef。

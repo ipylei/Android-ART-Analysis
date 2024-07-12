@@ -17,12 +17,13 @@ int main(int argc, char* const argv[]){
 
 
 
-        //niceName将被设置为app_process的进程名，32位机对应的进程名为"zygote"，而64位机上该进程名为"zygote64"
+            //niceName将被设置为app_process的进程名，32位机对应的进程名为"zygote"，而64位机上该进程名为"zygote64"
             niceName = ZYGOTE_NICE_NAME;
         } .....
     }
     ......
-    if (zygote) {//调用基类AndroidRuntime的start函数
+    if (zygote) {
+        //调用基类AndroidRuntime的start函数
         runtime.start("com.android.internal.os.ZygoteInit", args, zygote);
     }
     ....
@@ -38,12 +39,30 @@ void AndroidRuntime::start(const char* className, const Vector<String8>& options
     JniInvocation jni_invocation;
     jni_invocation.Init(NULL);   //它将加载ART虚拟机的核心动态库。
     JNIEnv* env;
+    
     //在ART虚拟机对应的核心动态库加载到zyogte进程后，该函数将启动ART虚拟机。
-    startVm(&mJavaVM, &env, zygote) != 0) { ...;}
+    if(startVm(&mJavaVM, &env, zygote) != 0) { 
+        ...;
+    }
+    
+    //注册JNI函数，即给虚拟机注册一些JNI函数
+    if(startReg(env)<0){
+        goto bail;
+    }
     
     //下面的代码和Zygote进程的处理逻辑相关，本书不拟介绍它们。对这部分内容感兴趣的读者
     //可阅读由笔者撰写的《深入理解Android 卷1》一书
     .....
+    
+    
+    //Welcomt to Java World
+    //p65、p74 
+    //找到ZygoteInit类的static main函数的jMethodId
+    char* slashClassName = toSlashClassName(className);
+    jclass startClass = env->FindClass(slashClassName);
+    startMeth = env->GetStaticMethodID(startClass, "main", "([Ljava/lang/String;)V");
+    //startClass为 com/android/internal/os/ZygoteInit
+    env->callStaticVoidMethod(startClass, startMeth, strArray);
 }
 
 
@@ -110,7 +129,7 @@ int AndroidRuntime::startVm(JavaVM** pJavaVM, JNIEnv** pEnv, bool zygote)
     initArgs.ignoreUnrecognized = JNI_FALSE;
     
     /*调用 JNI_CreateJavaVM 。注意，该函数和JniInvocation Init从libart.so取出的 JNI_CreateJavaVM 函数同名，
-    但它们是不同的函数JniInovcation Init取出的那个函数的地址保存在JNI_CreateJavaVM_（其名称后多一个下划线）变量中。
+    但它们是不同的函数JniInovcation Init取出的那个函数的地址保存在 JNI_CreateJavaVM_（其名称后多一个下划线）变量中。
     这一点特别容易混淆，请读者注意*/
     if (JNI_CreateJavaVM(pJavaVM, pEnv, &initArgs) < 0) {...}
     return 0;

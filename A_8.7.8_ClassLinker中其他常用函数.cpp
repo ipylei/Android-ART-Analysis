@@ -216,7 +216,7 @@ ArtField* ClassLinker::ResolveField(const DexFile& dex_file,
 
 
 
-//8.7.8.2 FindClass
+//【8.7.8.2 FindClass】
 //[class_linker.cc->ClassLinker::FindClass]
 mirror::Class* ClassLinker::FindClass(Thread* self,
                                       const char* descriptor, 
@@ -243,10 +243,12 @@ mirror::Class* ClassLinker::FindClass(Thread* self,
     //如果搜索的是数组类，则创建对应的数组类类对象。下文将介绍这个函数
     if (descriptor[0] == '[') {
         return CreateArrayClass(self, descriptor, hash, class_loader);
-    } else if (class_loader.Get() == nullptr) {
+    } 
+    else if (class_loader.Get() == nullptr) {
         /*对bootstrap类而言，它们是由虚拟机加载的，所以没有对应的ClassLoader。
           下面的 FindInClassPath 函数返回的 ClassPathEntry 是类型别名，其定义如下：
-          typedef pair<const DexFile*,const DexFile::ClassDef*> ClassPathEntry
+                typedef pair<const DexFile*,const DexFile::ClassDef*> ClassPathEntry
+                
           FindInClassPath 将从 boot_class_path 里对应的文件中找到目标类所在的Dex文件和对应的ClassDef信息，
           然后调用 DefineClass 来加载目标类  */
         ClassPathEntry pair = FindInClassPath(descriptor, hash, boot_class_path_);
@@ -259,7 +261,7 @@ mirror::Class* ClassLinker::FindClass(Thread* self,
     else {
         ScopedObjectAccessUnchecked soa(self);
         mirror::Class* cp_klass;
-        //如果是非bootstrap类，则需要触发ClassLoader进行类加载。
+        //如果是非bootstrap类，则需要触发 ClassLoader 进行类加载。
         //该函数请读者在学完8.7.9节关于ClassLoader的内容后自行研究
         if (FindClassInPathClassLoader(soa, self, descriptor, hash, class_loader, &cp_klass)) {
             if (cp_klass != nullptr) { 
@@ -268,10 +270,11 @@ mirror::Class* ClassLinker::FindClass(Thread* self,
         }
         
         ......
-        /*如果通过ClassLoader加载目标类失败，则下面的代码将转入Java层去执行ClassLoader的类
-          加载。根据代码中的注释所言，类加载失败需要抛出异常，而上面的FindClassInPathClassLoader并不会添加异常信息，
+        /*如果通过 ClassLoader 加载目标类失败，则下面的代码将转入Java层去执行 ClassLoader 的类加载。
+        
+        根据代码中的注释所言，类加载失败需要抛出异常，而上面的 FindClassInPathClassLoader 并不会添加异常信息，
           相反，它还会去掉其执行过程中其他函数因处理失败（比如DefineClass）而添加的异常信息。
-          所以，接下来的代码将进入Java层去ClassLoader对象的loadClass函数，虽然目标类最终也会加载失败，
+          所以，接下来的代码将进入Java层去 ClassLoader 对象的 loadClass 函数，虽然目标类最终也会加载失败，
           但相关异常信息就能添加，同时整个调用的堆栈信息也能正确反映出来。
           所以，这种处理方式应是ART虚拟机里为提升运行速度所做的优化处理吧  */
         ......

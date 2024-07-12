@@ -160,17 +160,16 @@ stuct code_item{
     
     //· tries_size 和 tries 数组：如果该函数内部有try语句块，则tries_size和tries数组用于描述try语句块相关的信息。
     //注意，tries 数组是可选项，如果 tries_size 为 0，则此code_item不包含tries数组。
-    ushort tries_size;                 //①
+    [*]ushort tries_size;                 //①
     [*]try_item[] tries;               //①
     [*]ushort padding;                 //① 用于将tries数组（如果有，并且insns_size是奇数长度的话）进行4字节对齐。
+    [*]encode_catch_handler_list handlers; //catch语句对应的内容，也是可选项。如果 tries_size 不为零才有 handlers 域。
     
     uint debug_info_off;
     
     uint insns_size;                   //指令码数组的长度
     ushort[] insns;                    //指令码的内容。Dex文件格式中JVM指令码长度为2个字节，而Class文件中JVM指令码长度为1个字节
                                        //低8位才是指令码，高8位是参数
-        
-    [*]encode_catch_handler_list handlers; //catch语句对应的内容，也是可选项。如果tries_size不为零才有handlers域。
 }
 
 
