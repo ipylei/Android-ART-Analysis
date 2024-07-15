@@ -47,10 +47,11 @@ int main(int argc, const char * const argv[]){
                         "com.android.server.SystemServer"
                     }
                     parsedArgs = new ZygoteConnection.Arguments(args);
+                    
                     //fork一个子进程，这个子进程就是system_server进程
                     //p75 //是一个native函数，实现为：Dalvik_dalvik_system_Zygote_forkSystemServer()
                     pid = Zygote.forkSystemServer(parsedArgs.uid, parsedArgs.gid, 
-                            parsedArgs.gids, debugFlags, null){ 
+                                                 parsedArgs.gids, debugFlags, null){ 
                         
                         pid = forkAndSpecializeCommon(args);    
                         return pid;
@@ -175,22 +176,62 @@ com.android.server.SystemServer.main(String[] args){
     System.loadLibrary("android_servers");
     //调用native的 initl 函数
     init1(args){  //是一个native函数，实现为：com_android_server_SystemServer_init1(JNIEnv * env, jobject clazz)
-        system_init(){  //调用另外一个函数(在system_init.cpp中)
-            
+        //调用另外一个函数(在system_init.cpp中)
+        //http://androidxref.com/2.2.3/xref/frameworks/base/cmds/system_server/library/system_init.cpp
+        system_init(){  
             AndroidRuntime * runtime = AndroidRuntime::getRuntime();
             //1.调用 init2 函数
+            //http://androidxref.com/2.2.3/xref/frameworks/base/services/java/com/android/server/SystemServer.java
             runtime->callStatic("com.android.server.SystemServer", "init2"){
                 Thread thr = new ServerThread();
                 thr.setName("android.server.ServerThread");
-                thr.start(){  //启动一个ServerThread
+                
+                //run方法()
+                thr.start(){  //启动一个ServerThread（然后注册多个Service）
                     //启动Entropy Service
+                    ServiceManager.addService("entropy", new EntropyService());
+                    
                     //启动电源管理服务
+                    power = new PowerManagerService();
+                    ServiceManager.addService(Context.POWER_SERVICE, power);
+                    
                     //启动电池管理服务
+                    battery = new BatteryService(context);
+                    ServiceManager.addService("battery", battery);
+                    
+                    
+                    //http://androidxref.com/2.2.3/xref/frameworks/base/services/java/com/android/server/am/ActivityManagerService.java#mSelf
+                    context = ActivityManagerService.main(factoryTest){
+                        AThread thr = new AThread();
+                        thr.start(){
+                           //创建 ActivityManagerService 实例对象
+                           ActivityManagerService m = new ActivityManagerService();
+                           mService = m;
+                        }
+                        ActivityManagerService m = thr.mService;
+                        mSelf = m;   //设置静态变量！
+                        ...
+                        ActivityThread at = ActivityThread.systemMain();
+                        Context context = at.getSystemContext();
+                        return context;
+                    }
+                    //注册/启动 ActivityManagerService
+                    ActivityManagerService.setSystemProcess(){
+                        ActivityManagerService m = mSelf;
+                        ServiceManager.addService("activity", m);
+                    }
+
+
                     //初始化看门狗
-                    Watchdog.getInstannce().init(context, battery, power, alarm, ActivityManagerService.self());
+                    Watchdog.getInstance().init(context, battery, power, alarm, ActivityManagerService.self());
+                    
                     //启动WindowManager服务
-                    //启动ActivityManager服务
-                    ...//启动其他服务
+                    wm = WindowManagerService.main(context, power, factoryTest != SystemServer.FACTORY_TEST_LOW_LEVEL);
+                    ServiceManager.addService(Context.WINDOW_SERVICE, wm);  //WINDOW_SERVICE="window"
+                    //启动 ActivityManager 服务
+                    ((ActivityManagerService)ServiceManager.getService("activity")).setWindowManager(wm);
+                    
+                    ...//启动其他服务  ACTIVITY_SERVICE = "activity";
                     
                     Looper.loop() //进行消息循环，然后处理消息
                     
@@ -198,6 +239,8 @@ com.android.server.SystemServer.main(String[] args){
             }
             
             //2.当前线程也加入到 Binder 通信的大潮中
+            ProcessState::self()->startThreadPool();
+            IPCThreadState::self()->joinThreadPool();
         }
     }
     
@@ -205,7 +248,7 @@ com.android.server.SystemServer.main(String[] args){
 
 
 //请求一个Activity时，而这个Activity附属于一个还未启动的进程，那么这个进程该如何启动呢？
-//ActivityManagerService也是由ServiceManager创建的
+//ActivityManagerService 也是由 SystemServer 创建的 [或者说注册的？]
 //ActivityManagerService 发送请求
 //p84 http://androidxref.com/2.2.3/xref/frameworks/base/services/java/com/android/server/am/ActivityManagerService.java
 private final void startProcessLocked(ProcessRecord app, String hostingType, String hostingNameStr) {

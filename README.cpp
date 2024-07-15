@@ -7,7 +7,13 @@
 5.5.2 类模板(p172)
 
 
-//【art虚拟机创建、启动流程】
+//1.app进程创建
+//2.app进程加载dex文件
+//3.dex2oat
+//4.类加载(loadClass)
+
+
+//【7.1 art虚拟机创建、启动流程】
 //注：其实就是 zygote 进程启动所执行的流程，然后该进程里就有了art虚拟机环境，
 //后面的app程序都是由zygote fork而来，所以也同样包含art虚拟机环境
 app_main.cpp->main() {
@@ -287,11 +293,42 @@ mirror::Class* ClassLinker::DefineClass(Thread* self,
                                         Handle<mirror::ClassLoader> class_loader,
                                         const DexFile& dex_file, 
                                         const DexFile::ClassDef& dex_class_def) {
+
     
-    //注册 DexFile 对象，包含如下操作：
-    //给classLoader对象创建一个classTable对象
-    //将DexCache对象存入ClassTable的 strong_roots_ 中 (std::vector<GcRoot<mirror::Object>>)
-    mirror::DexCache* dex_cache = RegisterDexFile(dex_file, class_loader.Get());
+    //注册DexFile对象，包含如下操作：   
+    //【1*】将classLoader 对象存入 class_liner中!
+    //【2*】给classLoader 对象创建一个classTable对象
+    //【3*】将DexCache对象存入ClassTable的strong_roots_ 中 (std::vector<GcRoot<mirror::Object>>)
+    mirror::DexCache* dex_cache = RegisterDexFile(dex_file, class_loader.Get()){
+         table = InsertClassTableForClassLoader(class_loader){
+            ClassTable* class_table = class_loader->GetClassTable();
+            if (class_table == nullptr) {
+                RegisterClassLoader(class_loader){
+                      Thread* const self = Thread::Current();
+                      ClassLoaderData data;
+                      // Create and set the class table.
+                      data.class_table = new ClassTable;
+                      //【2*】给classLoader 对象创建一个classTable对象
+                      class_loader->SetClassTable(data.class_table);
+                      // Create and set the linear allocator.
+                      data.allocator = Runtime::Current()->CreateLinearAlloc();
+                      class_loader->SetAllocator(data.allocator);
+                      
+                      //【1*】将classLoader 对象存入 class_liner中!
+                      // Add to the list so that we know to free the data later.
+                      class_loaders_.push_back(data);
+                }
+                
+                class_table = class_loader->GetClassTable();
+                DCHECK(class_table != nullptr);
+            }
+            return class_table;
+         }
+         //【3*】将DexCache对象存入ClassTable的strong_roots_ 中
+         table->InsertStrongRoot(h_dex_cache.Get());
+         
+    }
+    
     
     //这个函数将把类的状态从kStatusNotReady切换为kStatusIdx
 	//【8.7.2】  【Status】：kStatusIdx
@@ -457,8 +494,6 @@ mirror::Class* ClassLinker::DefineClass(Thread* self,
 }
 
 
-
-
 //【8.7.7 类初始化、校验】
 //[class_linker.cc->ClassLinker::InitializeClass]
 bool ClassLinker::InitializeClass(Thread* self, 
@@ -518,8 +553,174 @@ bool ClassLinker::InitializeClass(Thread* self,
 
 
 
-//dex2oat
-//【9.1】
+//【dex2oat流程！ aosp8.1.0】
+//http://aospxref.com/android-7.0.0_r7/xref/libcore/dalvik/src/main/java/dalvik/system/DexClassLoader.java
+new DexClassLoader(String dexPath, String optimizedDirectory,String librarySearchPath, ClassLoader parent) {
+    //http://aospxref.com/android-7.0.0_r7/xref/libcore/dalvik/src/main/java/dalvik/system/BaseDexClassLoader.java
+    BaseDexClassLoader(String dexPath, File optimizedDirectory,String librarySearchPath, ClassLoader parent){
+        //http://aospxref.com/android-7.0.0_r7/xref/libcore/dalvik/src/main/java/dalvik/system/DexPathList.java#96
+        this.pathList = new DexPathList(this, dexPath, librarySearchPath, optimizedDirectory){
+            //http://aospxref.com/android-7.0.0_r7/xref/libcore/dalvik/src/main/java/dalvik/system/DexPathList.java
+            this.dexElements = makeDexElements(splitDexPath(dexPath), optimizedDirectory, suppressedExceptions, definingContext){
+                //http://aospxref.com/android-7.0.0_r7/xref/libcore/dalvik/src/main/java/dalvik/system/DexPathList.java
+                return makeElements(files, optimizedDirectory, suppressedExceptions, false, loader){
+                    ...
+                    for (File file : files) {
+                        if (path.contains(zipSeparator)) {
+                            ...
+                        }
+                        else if (file.isFile()) {
+                            dex = loadDexFile(file, optimizedDirectory, loader, elements){
+                                //http://aospxref.com/android-7.0.0_r7/xref/libcore/dalvik/src/main/java/dalvik/system/DexPathList.java#loadDexFile
+                                return DexFile.loadDex(file.getPath(), optimizedPath, 0, loader, elements){
+                                    if (optimizedDirectory == null) {
+                                        return new DexFile(file, loader, elements){
+                                           //http://aospxref.com/android-7.0.0_r7/xref/libcore/dalvik/src/main/java/dalvik/system/DexFile.java#112
+                                           mCookie = openDexFile(fileName, null, 0, loader, elements);
+                                           mInternalCookie = mCookie;
+                                           mFileName = fileName;
+                                        }
+                                    } else {
+                                        String optimizedPath = optimizedPathFor(file, optimizedDirectory);
+                                        //http://aospxref.com/android-7.0.0_r7/xref/libcore/dalvik/src/main/java/dalvik/system/DexFile.java#211
+                                        return DexFile.loadDex(file.getPath(), optimizedPath, 0, loader, elements){
+                                            //http://aospxref.com/android-7.0.0_r7/xref/libcore/dalvik/src/main/java/dalvik/system/DexFile.java#135
+                                            return new DexFile(sourcePathName, outputPathName, flags, loader, elements){
+                                                mCookie = openDexFile(sourceName, outputName, flags, loader, elements);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            elements[elementsPos++] = new Element(dir, false, zip, dex);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+//http://aospxref.com/android-7.0.0_r7/xref/libcore/dalvik/src/main/java/dalvik/system/DexFile.java#openDexFile
+private static Object openDexFile(String sourceName, String outputName, 
+                                   int flags, 
+                                   ClassLoader loader, 
+                                   DexPathList.Element[] elements) throws IOException {
+                                       
+    //http://aospxref.com/android-8.0.0_r36/xref/art/runtime/native/dalvik_system_DexFile.cc#727
+    //private static native Object openDexFileNative(String sourceName, String outputName, int flags, ClassLoader loader, DexPathList.Element[] elements);
+    static jobject DexFile_openDexFileNative(JNIEnv* env,
+                                             jclass,
+                                             jstring javaSourceName,
+                                             jstring javaOutputName ATTRIBUTE_UNUSED,
+                                             jint flags ATTRIBUTE_UNUSED,
+                                             jobject class_loader,
+                                             jobjectArray dex_elements) {
+        
+        //【A_7.3.2.2_OatFileManager_extra】
+        //http://aospxref.com/android-8.0.0_r36/xref/art/runtime/oat_file_manager.cc?fi=OpenDexFilesFromOat#OpenDexFilesFromOat                                       
+        dex_files = runtime->GetOatFileManager().OpenDexFilesFromOat(sourceName.c_str(),
+                                                               class_loader,
+                                                               dex_elements,
+                                                               /*out*/ &oat_file,
+                                                             /*out*/ &error_msgs){
+            //【A_7.3.2.2_OatFileManager_extra】                                                
+            //http://aospxref.com/android-8.0.0_r36/xref/art/runtime/oat_file_assistant.cc?fi=MakeUpToDate#MakeUpToDate                                                     
+            oat_file_assistant.MakeUpToDate(/*profile_changed*/false, /*out*/ &error_msg){
+                //http://aospxref.com/android-8.0.0_r36/xref/art/runtime/oat_file_assistant.cc?fi=MakeUpToDate#GenerateOatFileNoChecks
+                return GenerateOatFileNoChecks(info, target, error_msg){
+                    //http://aospxref.com/android-8.0.0_r36/xref/art/runtime/oat_file_assistant.cc?fi=MakeUpToDate#Dex2Oat
+                    Dex2Oat(args, error_msg){
+                        //http://aospxref.com/android-8.0.0_r36/xref/art/runtime/exec_utils.cc#91
+                        return Exec(argv, error_msg){
+                            http://aospxref.com/android-8.0.0_r36/xref/art/runtime/exec_utils.cc#ExecAndReturnCode
+                            int status = ExecAndReturnCode(arg_vector, error_msg){
+                                pid_t pid = fork();  //创建子进程执行dexoat
+                                if (pid == 0) {
+                                    execv(program, &args[0]);
+                                    //or 
+                                    execve(program, &args[0], envp);
+                                }
+                            }
+                        }
+                    }
+                }
+            } 
+            
+            //【7.8.2和7.8.3_ClassLinker】
+            //dex2oat编译成功的话，AddImageSpace会将类信息装入到dex_files
+            added_image_space = runtime->GetClassLinker()->AddImageSpace(image_space.get(),
+                                                                         h_loader,
+                                                                         dex_elements,
+                                                                         dex_location,
+                                                                         /*out*/&dex_files,
+                                                                         /*out*/&temp_error_msg);
+            
+            //dex2oat编译失败 or 被阻断的情况
+            //【A_7.3.2.2_OatFileManager_extra2】  
+            if (dex_files.empty()) {
+                //调用：http://aospxref.com/android-8.0.0_r36/xref/art/runtime/oat_file_manager.cc?fi=OpenDexFilesFromOat#771
+                //调用：DexFile::Open(dex_location, dex_location, kVerifyChecksum, /*out*/ &error_msg, &dex_files)) {                    
+                //声明：http://aospxref.com/android-8.0.0_r36/xref/art/runtime/dex_file.cc#212
+                bool DexFile::Open(const char* filename,
+                                   const std::string& location,
+                                   bool verify_checksum,
+                                   std::string* error_msg,
+                                   std::vector<std::unique_ptr<const DexFile>>* dex_files) {
+                       
+                    //【android_unpacker的第1个脱壳点(dex)】
+                    File fd = OpenAndReadMagic(filename, &magic, error_msg);
+                    
+                    //http://aospxref.com/android-8.1.0_r81/xref/art/runtime/dex_file.cc#OpenFile
+                    std::unique_ptr<const DexFile> dex_file(DexFile::OpenFile(fd.Release(),
+                                                              location,
+                                                              /* verify */ true,
+                                                              verify_checksum,
+                                                              error_msg)){
+                                                                  
+                        //【将dex文件映射进内存】
+                        map.reset(MemMap::MapFile(length, PROT_READ, MAP_PRIVATE, fd,
+                                              0, /*low_4gb*/false,location.c_str(),error_msg));
+                        
+                        //http://aospxref.com/android-8.1.0_r81/xref/art/runtime/dex_file.cc#OpenCommon                                            
+                        std::unique_ptr<DexFile> dex_file = OpenCommon(map->Begin(),
+                                                                         map->Size(),
+                                                                         location,
+                                                                         dex_header->checksum_,
+                                                                         kNoOatDexFile,
+                                                                         verify,
+                                                                         verify_checksum,
+                                                                         error_msg){
+                                                                             
+                                //【android_unpacker的第2个脱壳点(dex)】
+                                //http://aospxref.com/android-8.1.0_r81/xref/art/runtime/dex_file.cc#DexFile
+                                std::unique_ptr<DexFile> dex_file(new DexFile(base,
+                                                                    size,
+                                                                    location,
+                                                                    location_checksum,
+                                                                    oat_dex_file)){
+                                                                        
+                                        ///////////////////////////////////////                                  
+                                                                        
+                                }                         
+                        }                                     
+                    } 
+                }
+            }    
+        }                                           
+                                             
+    }
+}
+
+
+//9.5.1　Compile
+//1.一种是dex到dex的编译（源码中叫Dex To Dex Compilation）
+//2.jni方法的编译
+//3.dex字节码到机器码的编译
+
+
+//【9.1 dex2oat aosp7.0.0】
 int main(int argc, char** argv) {
     //int result = art::dex2oat(argc, argv); //调用dex2oat函数
 	static int dex2oat(int argc, char** argv) {
@@ -690,36 +891,12 @@ int main(int argc, char** argv) {
 
 
 
-/*
-jni_entrypoints_x86.S
-quick_entrypoints_x86.S
+/*jni_entrypoints_x86.S
+  quick_entrypoints_x86.S
 
-http://aospxref.com/android-7.0.0_r7/xref/art/runtime/arch/arm64/jni_entrypoints_arm64.S
-http://aospxref.com/android-7.0.0_r7/xref/art/runtime/arch/arm64/quick_entrypoints_arm64.S
-
-非JNI方法
-    有机器码：机器码执行模式 (机器码入口)
-    无机器码：解释执行模式： (机器码入口更新为：art_quick_to_interpreter_bridge)
-
-JNI方法
-    有机器码：机器码入口为(一串汇编代码，本身会跳转到JNI机器码入口地址)
-                => jni机器码入口
-                    > 已注册：为 Native层函数
-                    > 未注册：为 art_jni_dlsym_lookup_stub
-                        1.bl artFindNativeMethod(注册Native层函数；返回Native层函数)
-                        2.执行【Native层函数】
-                    
-              
-    无机器码：机器码入口为(art_quick_generic_jni_trampoline)
-                    1.bl artQuickGenericJniTrampoline(寻找并返回Native层函数地址，同时未注册的情况下还进行注册)
-                    2.执行【Native层函数】
-    
-    【所以】：
-        有机器码：机器码入口 -> JNI机器码入口 -> Native层函数地址
-        无机器码：机器码入口 -> Native层函数地址
-        
+    http://aospxref.com/android-7.0.0_r7/xref/art/runtime/arch/arm64/jni_entrypoints_arm64.S
+    http://aospxref.com/android-7.0.0_r7/xref/art/runtime/arch/arm64/quick_entrypoints_arm64.S
 */
-
 
 //【10.2 解释执行】
 //一个方法如果采取解释执行的话，其ArtMethod对象的机器码入口将指向一段跳转代码——art_quick_to_interpreter_bridge
@@ -798,3 +975,28 @@ extern "C" uint64_t artQuickToInterpreterBridge (ArtMethod* method,
         }
     }
 }
+/*  总结
+
+非JNI方法
+    有机器码：机器码执行模式 (机器码入口)
+    无机器码：解释执行模式： (机器码入口更新为：art_quick_to_interpreter_bridge)
+
+
+JNI方法
+    有机器码：机器码入口为(一串汇编代码，本身会跳转到JNI机器码入口地址)
+                => jni机器码入口
+                    > 已注册：为 Native 层函数
+                    > 未注册：为 art_jni_dlsym_lookup_stub
+                        1.bl artFindNativeMethod(注册Native层函数；返回Native层函数)
+                        2.执行【Native层函数】
+                    
+              
+    无机器码：机器码入口设置为(art_quick_generic_jni_trampoline 即通用蹦床)
+                    1.bl artQuickGenericJniTrampoline(寻找并返回Native层函数地址，同时未注册的情况下还进行注册)
+                    2.执行【Native层函数】
+    
+    【所以】：
+        有机器码：机器码入口 -> JNI机器码入口 -> Native层函数地址
+        无机器码：机器码入口 -> Native层函数地址
+*/
+
