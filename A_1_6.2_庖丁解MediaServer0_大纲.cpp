@@ -137,6 +137,10 @@ int main(int argc, char** argv)
                         
                         //【*】发送命令读取请求
                         result = talkWithDriver(); //IPCThreadState有属性.mProcess
+                        if (result >= NO_ERROR) {
+                           cmd = mIn.readInt32();
+                           result = executeCommand(cmd);
+                        }                        
                     } while (result != -ECONNREFUSED && result != -EBADF);    
                 }
             }
@@ -155,6 +159,10 @@ int main(int argc, char** argv)
             
             //【*】发送命令读取请求
             result = talkWithDriver();  //IPCThreadState有属性.mProcess
+            if (result >= NO_ERROR) {
+               cmd = mIn.readInt32();
+               result = executeCommand(cmd);
+            }
         } while (result != -ECONNREFUSED && result != -EBADF); 
     }
 }
