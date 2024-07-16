@@ -55,8 +55,8 @@ static jobject CreateSystemClassLoader(Runtime* runtime) {
 //要看懂上述代码，最好结合Java层对应的部分。先来看ClassLoader Java类里的那个getSystemClassLoader函数。
 //[ClassLoader.java->ClassLoader::getSystemClassLoader]
 public static ClassLoader getSystemClassLoader() {
-        //loader是SystemClassLoader类的静态成员。此函数返回的数据类型是ClassLoader
-        return SystemClassLoader.loader;
+    //loader是SystemClassLoader类的静态成员。此函数返回的数据类型是ClassLoader
+    return SystemClassLoader.loader;
 }
 
 //SystemClassLoader是ClassLoader的静态内部类

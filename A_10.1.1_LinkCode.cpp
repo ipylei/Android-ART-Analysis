@@ -120,3 +120,8 @@ JNI方法
         无机器码：机器码入口 -> Native层函数地址
 */
 
+
+//http://androidxref.com/4.4.3_r1.1/xref/frameworks/base/core/java/android/util/Slog.java
+//日志库：import android.util.Slog;
+//http://androidxref.com/4.4.3_r1.1/xref/frameworks/base/core/java/android/app/LoadedApk.java#mApplicationInfo
+//用法：Slog.v(ActivityThread.TAG, "Class path: " + zip + ", JNI path: " + libraryPath);

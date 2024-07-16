@@ -52,7 +52,6 @@ int main(int argc, const char * const argv[]){
                     //p75 //是一个native函数，实现为：Dalvik_dalvik_system_Zygote_forkSystemServer()
                     pid = Zygote.forkSystemServer(parsedArgs.uid, parsedArgs.gid, 
                                                  parsedArgs.gids, debugFlags, null){ 
-                        
                         pid = forkAndSpecializeCommon(args);    
                         return pid;
                     }
@@ -111,7 +110,8 @@ int main(int argc, const char * const argv[]){
                             args = readArgumentList();  //读取SS(system_server进程发送过来的参数)
                             parsedArgs = new Arguments(args);
                             descriptors = mSocket.getAncillaryFileDescriptors();
-                            //根据函数名，可知Zygote又分裂出了一个子进程
+                            
+                            //【fork出app进程！】根据函数名，可知Zygote又分裂出了一个子进程
                             pid = Zygote.forkAndSpecialize(parsedArgs.uid, parsedArgs.gid, parsedArgs.gids, parsedArgs.debugFlags, rlimits);
                             //子进程处理
                             if(pid == 0){
@@ -301,5 +301,5 @@ private final void startProcessLocked(ProcessRecord app, String hostingType, Str
     }
       
 }
-/*P86 由于 ActivityManagerService 驻留于SystemServer进程中，所以正是system_server进程向Zygote发送了消息
+/*P86 由于 ActivityManagerService 驻留于 SystemServer 进程中，所以正是 system_server 进程向Zygote发送了消息
 */

@@ -93,6 +93,91 @@ void binder_loop(struct binder_state *bs, binder_handler func)
 }
 
 
+//http://androidxref.com/2.2.3/xref/frameworks/base/cmds/servicemanager/binder.c#binder_parse
+int binder_parse(struct binder_state *bs, struct binder_io *bio, uint32_t *ptr, uint32_t size, binder_handler func)
+{
+    int r = 1;
+    uint32_t *end = ptr + (size / 4);
+
+    while (ptr < end) {
+        uint32_t cmd = *ptr++;
+#if TRACE
+        fprintf(stderr,"%s:\n", cmd_name(cmd));
+#endif
+        switch(cmd) {
+        case BR_NOOP:
+            break;
+        case BR_TRANSACTION_COMPLETE:
+            break;
+        case BR_INCREFS:
+        case BR_ACQUIRE:
+        case BR_RELEASE:
+        case BR_DECREFS:
+#if TRACE
+            fprintf(stderr,"  %08x %08x\n", ptr[0], ptr[1]);
+#endif
+            ptr += 2;
+            break;
+        case BR_TRANSACTION: {
+            struct binder_txn *txn = (void *) ptr;
+            if ((end - ptr) * sizeof(uint32_t) < sizeof(struct binder_txn)) {
+                LOGE("parse: txn too small!\n");
+                return -1;
+            }
+            binder_dump_txn(txn);
+            if (func) {
+                unsigned rdata[256/4];
+                struct binder_io msg;
+                struct binder_io reply;
+                int res;
+
+                bio_init(&reply, rdata, sizeof(rdata), 4);
+                bio_init_from_txn(&msg, txn);
+                //func = svcmgr_handler
+                res = func(bs, txn, &msg, &reply);
+                binder_send_reply(bs, &reply, txn->data, res);   //进行回复
+            }
+            ptr += sizeof(*txn) / sizeof(uint32_t);
+            break;
+        }
+        case BR_REPLY: {
+            struct binder_txn *txn = (void*) ptr;
+            if ((end - ptr) * sizeof(uint32_t) < sizeof(struct binder_txn)) {
+                LOGE("parse: reply too small!\n");
+                return -1;
+            }
+            binder_dump_txn(txn);
+            if (bio) {
+                bio_init_from_txn(bio, txn);
+                bio = 0;
+            } else {
+                    /* todo FREE BUFFER */
+            }
+            ptr += (sizeof(*txn) / sizeof(uint32_t));
+            r = 0;
+            break;
+        }
+        case BR_DEAD_BINDER: {
+            struct binder_death *death = (void*) *ptr++;
+            death->func(bs, death->ptr);
+            break;
+        }
+        case BR_FAILED_REPLY:
+            r = -1;
+            break;
+        case BR_DEAD_REPLY:
+            r = -1;
+            break;
+        default:
+            LOGE("parse: OOPS %d\n", cmd);
+            return -1;
+        }
+    }
+
+    return r;
+}
+
+
 //5.集中处理 p154
 //void binder_loop(struct binder_state *bs, binder_handler func) 中的 func
 //http://androidxref.com/2.2.3/xref/frameworks/base/cmds/servicemanager/service_manager.c

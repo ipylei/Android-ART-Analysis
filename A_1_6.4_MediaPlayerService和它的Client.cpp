@@ -78,7 +78,7 @@ status_t IPCThreadState::executeCommand(int32_t cmd)
             Parcel buffer;
             Parcel reply; 
             if (tr.target.ptr) {
-                //p147 这里的b实际上就是实现 BnSerViceManager，关于它的作用，我们要在6.5节中讲解
+                //p147 这里的b实际上就是实现 BnServiceXXX(对应注册的各个Service)，
                 //p160
                 sp<BBinder> b((BBinder*)tr.cookie);
                 const status_t error = b->transact(tr.code, buffer, &reply, 0);
