@@ -1,207 +1,177 @@
-std::vector < std::unique_ptr < const DexFile >> OatFileManager::OpenDexFilesFromOat(
-    const char * dex_location,                 //dexfile路径
-    const char * oat_location,                 //优化路径
-    jobject class_loader,
-    jobjectArray dex_elements,
-    
-    const OatFile ** out_oat_file,             //nullptr
-    std::vector < std::string >  * error_msgs  //std::vector<std::string> error_msgs;
-                                        ) {
-                                            
-                                            
-                                                            
-    ScopedTrace trace(__FUNCTION__);
-    CHECK(dex_location != nullptr);
-    CHECK(error_msgs != nullptr);
-
-    // Verify we aren't holding the mutator lock, which could starve GC if we
-    // have to generate or relocate an oat file.
-    Thread * const self = Thread::Current();
-    Locks::mutator_lock_->AssertNotHeld(self);
-    Runtime * const runtime = Runtime::Current();
-    
-    //初始化一个 oat_file 助手对象
-    OatFileAssistant oat_file_assistant(dex_location,
-        oat_location,
-        kRuntimeISA,
-        /*profile_changed*/
-        false,
-        !runtime->IsAotCompiler());
-
-    // Lock the target oat location to avoid races generating and loading the
-    // oat file.
-    std::string error_msg;
-    if (!oat_file_assistant.Lock(/*out*/ & error_msg)) {
-        // Don't worry too much if this fails. If it does fail, it's unlikely we
-        // can generate an oat file anyway.
-        VLOG(class_linker) << "OatFileAssistant::Lock: " << error_msg;
-    }
-
-    const OatFile * source_oat_file = nullptr;
-    
-    //插件oat文件是否是最新的，即是否需要重新编译，如果需要的话就编译成最新的：MakeUpToDate()
-    if (!oat_file_assistant.IsUpToDate()) {
-        // Update the oat file on disk if we can. This may fail, but that's okay.
-        // Best effort is all that matters here.
-        switch (oat_file_assistant.MakeUpToDate(filter_, /*out*/ & error_msg)) {
-        case OatFileAssistant::kUpdateFailed:
-            LOG(WARNING) << error_msg;
-            break;
-
-        case OatFileAssistant::kUpdateNotAttempted:
-            // Avoid spamming the logs if we decided not to attempt making the oat
-            // file up to date.
-            VLOG(oat) << error_msg;
-            break;
-
-        case OatFileAssistant::kUpdateSucceeded:
-            // Nothing to do.
-            break;
-        }
-    }
-
-    // Get the oat file on disk.
-    std::unique_ptr < const OatFile > oat_file(oat_file_assistant.GetBestOatFile().release());
-    
-    //当oat_file不为空，则代表dex2oat编译成功
-    if (oat_file != nullptr) {
-        // Take the file only if it has no collisions, or we must take it because of preopting.
-        bool accept_oat_file =
-            !HasCollisions(oat_file.get(), class_loader, dex_elements, /*out*/ & error_msg);
-        if (!accept_oat_file) {
-            // Failed the collision check. Print warning.
-            if (Runtime::Current()->IsDexFileFallbackEnabled()) {
-                LOG(WARNING) << "Found duplicate classes, falling back to interpreter mode for "
-                 << dex_location;
-            } else {
-                LOG(WARNING) << "Found duplicate classes, dex-file-fallback disabled, will be failing to "
-                " load classes for " << dex_location;
-            }
-            LOG(WARNING) << error_msg;
-
-            // However, if the app was part of /system and preopted, there is no original dex file
-            // available. In that case grudgingly accept the oat file.
-            if (!oat_file_assistant.HasOriginalDexFiles()) {
-                accept_oat_file = true;
-                LOG(WARNING) << "Dex location " << dex_location << " does not seem to include dex file. "
-                 << "Allow oat file use. This is potentially dangerous.";
-            }
-        }
-
-        if (accept_oat_file) {
-            VLOG(class_linker) << "Registering " << oat_file->GetLocation();
-            source_oat_file = RegisterOatFile(std::move(oat_file));
-             * out_oat_file = source_oat_file;
-        }
-    }
-
-    std::vector < std::unique_ptr < const DexFile >> dex_files;
-
-    // Load the dex files from the oat file.
-    if (source_oat_file != nullptr) {
-        bool added_image_space = false;
-        if (source_oat_file->IsExecutable()) {
-            std::unique_ptr < gc::space::ImageSpace > image_space(
-                kEnableAppImage ? oat_file_assistant.OpenImageSpace(source_oat_file) : nullptr);
-            if (image_space != nullptr) {
-                ScopedObjectAccess soa(self);
-                StackHandleScope < 1 > hs(self);
-                Handle < mirror::ClassLoader > h_loader(
-                    hs.NewHandle(soa.Decode < mirror::ClassLoader *  > (class_loader)));
-                // Can not load app image without class loader.
-                if (h_loader.Get() != nullptr) {
-                    std::string temp_error_msg;
-                    // Add image space has a race condition since other threads could be reading from the
-                    // spaces array.
-                    {
-                        ScopedThreadSuspension sts(self, kSuspended);
-                        gc::ScopedGCCriticalSection gcs(self,
-                            gc::kGcCauseAddRemoveAppImageSpace,
-                            gc::kCollectorTypeAddRemoveAppImageSpace);
-                        ScopedSuspendAll ssa("Add image space");
-                        runtime->GetHeap()->AddSpace(image_space.get());
-                    }{
-                        ScopedTrace trace2(StringPrintf("Adding image space for location %s", dex_location));
-                        added_image_space = runtime->GetClassLinker()->AddImageSpace(image_space.get(),
-                                h_loader,
-                                dex_elements,
-                                dex_location,
-                                /*out*/
-                                 & dex_files,
-                                /*out*/
-                                 & temp_error_msg);
-                    }
-                    if (added_image_space) {
-                        // Successfully added image space to heap, release the map so that it does not get
-                        // freed.
-                        image_space.release();
-                    } else {
-                        LOG(INFO) << "Failed to add image file " << temp_error_msg;
-                        dex_files.clear();{
-                            ScopedThreadSuspension sts(self, kSuspended);
-                            gc::ScopedGCCriticalSection gcs(self,
-                                gc::kGcCauseAddRemoveAppImageSpace,
-                                gc::kCollectorTypeAddRemoveAppImageSpace);
-                            ScopedSuspendAll ssa("Remove image space");
-                            runtime->GetHeap()->RemoveSpace(image_space.get());
-                        }
-                        // Non-fatal, don't update error_msg.
-                    }
-                }
-            }
-        }
-        if (!added_image_space) {
-            DCHECK(dex_files.empty());
-            dex_files = oat_file_assistant.LoadDexFiles( * source_oat_file, dex_location);
-        }
-        if (dex_files.empty()) {
-            error_msgs->push_back("Failed to open dex files from " + source_oat_file->GetLocation());
-        }
-    }
-    
-    //编译失败的情况！ 或者dex2oat被阻断的情况
-    // Fall back to running out of the original dex file if we couldn't load any dex_files from the oat file.
-    if (dex_files.empty()) {
-        if (oat_file_assistant.HasOriginalDexFiles()) {
-            if (Runtime::Current()->IsDexFileFallbackEnabled()) {
-                //【重点!】
-                if (!DexFile::Open(dex_location, dex_location, /*out*/ & error_msg,  & dex_files)) {
-                    LOG(WARNING) << error_msg;
-                    error_msgs->push_back("Failed to open dex files from " + std::string(dex_location)
-                         + " because: " + error_msg);
-                }
-            } else {
-                error_msgs->push_back("Fallback mode disabled, skipping dex files.");
-            }
-        } else {
-            error_msgs->push_back("No original dex files found for dex location "
-                 + std::string(dex_location));
-        }
-    }
-
-    // TODO(calin): Consider optimizing this knowing that is useless to record the
-    // use of fully compiled apks.
-    Runtime::Current()->NotifyDexLoaded(dex_location);
-    return dex_files;
-}
+//http://aospxref.com/android-8.0.0_r36/xref/art/runtime/oat_file_manager.cc?fi=OpenDexFilesFromOat#OpenDexFilesFromOat
+std::vector<std::unique_ptr<const DexFile>> OatFileManager::OpenDexFilesFromOat(
+                            const char* dex_location,     //dexfile路径
+                            jobject class_loader,         //优化路径
+                            jobjectArray dex_elements,
+                            const OatFile** out_oat_file, //nullptr
+                            std::vector<std::string>* error_msgs //std::vector<std::string> error_msgs;
+                            ) {
 
 
+  // Verify we aren't holding the mutator lock, which could starve GC if we have to generate or relocate an oat file.
+  Thread* const self = Thread::Current();
+  Locks::mutator_lock_->AssertNotHeld(self);
+  Runtime* const runtime = Runtime::Current();
+  
+  //初始化一个 oat_file 助手对象
+  OatFileAssistant oat_file_assistant(dex_location,
+                                      kRuntimeISA,
+                                      !runtime->IsAotCompiler());
 
-
-
-//编译生成oat文件
-OatFileAssistant::ResultOfAttemptToUpdate
-OatFileAssistant::MakeUpToDate(CompilerFilter::Filter target, std::string* error_msg) {
-  switch (GetDexOptNeeded(target)) {
-    case kNoDexOptNeeded: return kUpdateSucceeded;
-    
-    case kDex2OatNeeded: return GenerateOatFile(target, error_msg);
-    case kPatchOatNeeded: return RelocateOatFile(OdexFileName(), error_msg);
-    case kSelfPatchOatNeeded: return RelocateOatFile(OatFileName(), error_msg);
+  // Lock the target oat location to avoid races generating and loading the oat file.
+  std::string error_msg;
+  if (!oat_file_assistant.Lock(/*out*/&error_msg)) {
+    // Don't worry too much if this fails. If it does fail, it's unlikely we can generate an oat file anyway.
+    VLOG(class_linker) << "OatFileAssistant::Lock: " << error_msg;
   }
-  UNREACHABLE();
-}
 
+  const OatFile* source_oat_file = nullptr;
+  
+  
+  //插件oat文件是否是最新的，即是否需要重新编译，如果需要的话就编译成最新的：MakeUpToDate()
+  if (!oat_file_assistant.IsUpToDate()) {
+    // Update the oat file on disk if we can, based on the --compiler-filter
+    // option derived from the current runtime options.
+    // This may fail, but that's okay. Best effort is all that matters here.
+    switch (oat_file_assistant.MakeUpToDate(/*profile_changed*/false, /*out*/ &error_msg)) {
+      case OatFileAssistant::kUpdateFailed:
+        LOG(WARNING) << error_msg;
+        break;
+
+      case OatFileAssistant::kUpdateNotAttempted:
+        // Avoid spamming the logs if we decided not to attempt making the oat file up to date.
+        VLOG(oat) << error_msg;
+        break;
+
+      case OatFileAssistant::kUpdateSucceeded:
+        // Nothing to do.
+        break;
+    }
+  }
+
+  // Get the oat file on disk.
+  std::unique_ptr<const OatFile> oat_file(oat_file_assistant.GetBestOatFile().release());
+  
+  //当oat_file不为空，则代表dex2oat编译成功
+  if (oat_file != nullptr) {
+    bool accept_oat_file = !HasCollisions(oat_file.get(), class_loader, dex_elements, /*out*/ &error_msg);
+    if (!accept_oat_file) {
+      if (Runtime::Current()->IsDexFileFallbackEnabled()) {
+        if (!oat_file_assistant.HasOriginalDexFiles()) {
+          accept_oat_file = true;
+          LOG(WARNING) << "Dex location " << dex_location << " does not seem to include dex file. " << "Allow oat file use. This is potentially dangerous.";
+        } else {
+          LOG(WARNING) << "Found duplicate classes, falling back to extracting from APK : " << dex_location;
+          LOG(WARNING) << "NOTE: This wastes RAM and hurts startup performance.";
+        }
+      } else {
+        if (!oat_file_assistant.HasOriginalDexFiles()) {
+          accept_oat_file = true;
+        }
+        LOG(WARNING) << "Found duplicate classes, dex-file-fallback disabled, will be failing to  load classes for " << dex_location;
+      }
+    }
+
+    if (accept_oat_file) {
+      VLOG(class_linker) << "Registering " << oat_file->GetLocation();
+      source_oat_file = RegisterOatFile(std::move(oat_file));
+      *out_oat_file = source_oat_file;
+    }
+  }
+
+  std::vector<std::unique_ptr<const DexFile>> dex_files;
+  
+  
+  //情况1：从oat文件中加载dexfile信息
+  // Load the dex files from the oat file.
+  if (source_oat_file != nullptr) {
+    bool added_image_space = false;
+    
+    if (source_oat_file->IsExecutable()) {
+      std::unique_ptr<gc::space::ImageSpace> image_space =
+          kEnableAppImage ? oat_file_assistant.OpenImageSpace(source_oat_file) : nullptr;
+      if (image_space != nullptr) {
+        ScopedObjectAccess soa(self);
+        StackHandleScope<1> hs(self);
+        Handle<mirror::ClassLoader> h_loader(
+            hs.NewHandle(soa.Decode<mirror::ClassLoader>(class_loader)));
+        // Can not load app image without class loader.
+        if (h_loader != nullptr) {
+          std::string temp_error_msg;
+          // Add image space has a race condition since other threads could be reading from the
+          // spaces array.
+          {
+            ScopedThreadSuspension sts(self, kSuspended);
+            gc::ScopedGCCriticalSection gcs(self,
+                                            gc::kGcCauseAddRemoveAppImageSpace,
+                                            gc::kCollectorTypeAddRemoveAppImageSpace);
+            ScopedSuspendAll ssa("Add image space");
+            runtime->GetHeap()->AddSpace(image_space.get());
+          }
+          {
+            ScopedTrace trace2(StringPrintf("Adding image space for location %s", dex_location)); 
+            added_image_space = runtime->GetClassLinker()->AddImageSpace(image_space.get(),
+                                                                         h_loader,
+                                                                         dex_elements,
+                                                                         dex_location,
+                                                                         /*out*/&dex_files,
+                                                                         /*out*/&temp_error_msg);
+          }
+          if (added_image_space) {
+            // Successfully added image space to heap, release the map so that it does not get
+            // freed.
+            image_space.release();
+          } else {
+            LOG(INFO) << "Failed to add image file " << temp_error_msg;
+            dex_files.clear();
+            {
+              ScopedThreadSuspension sts(self, kSuspended);
+              gc::ScopedGCCriticalSection gcs(self,
+                                              gc::kGcCauseAddRemoveAppImageSpace,
+                                              gc::kCollectorTypeAddRemoveAppImageSpace);
+              ScopedSuspendAll ssa("Remove image space");
+              runtime->GetHeap()->RemoveSpace(image_space.get());
+            }
+            // Non-fatal, don't update error_msg.
+          }
+        }
+      }
+    }    
+    //[*]goto here
+    if (!added_image_space) {
+      DCHECK(dex_files.empty());
+      //http://aospxref.com/android-8.0.0_r36/xref/art/runtime/oat_file_assistant.cc?fi=LoadDexFiles#LoadDexFiles
+      dex_files = oat_file_assistant.LoadDexFiles(*source_oat_file, dex_location);
+    }
+    if (dex_files.empty()) {
+      error_msgs->push_back("Failed to open dex files from " + source_oat_file->GetLocation());
+    }
+  }
+
+  // Fall back to running out of the original dex file if we couldn't load any dex_files from the oat file.
+  //情况2：编译失败的情况！ 或者dex2oat被阻断的情况，会直接去打dexfile文件
+  if (dex_files.empty()) {
+    if (oat_file_assistant.HasOriginalDexFiles()) {
+      if (Runtime::Current()->IsDexFileFallbackEnabled()) {
+        static constexpr bool kVerifyChecksum = true;
+        //[*]goto here -> dex2oat编译失败或被阻断的情况下，会直接去打dexfile文件
+        //http://aospxref.com/android-8.0.0_r36/xref/art/runtime/dex_file.cc
+        if (!DexFile::Open(dex_location, dex_location, kVerifyChecksum, /*out*/ &error_msg, &dex_files)) {
+          LOG(WARNING) << error_msg;
+          error_msgs->push_back("Failed to open dex files from " + std::string(dex_location)
+                                + " because: " + error_msg);
+        }
+      } else {
+        error_msgs->push_back("Fallback mode disabled, skipping dex files.");
+      }
+    } else {
+      error_msgs->push_back("No original dex files found for dex location "
+          + std::string(dex_location));
+    }
+  }
+
+  return dex_files;
+}
 
 
 //以下分析aosp 8.0.0 代码!

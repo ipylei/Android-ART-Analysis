@@ -7,10 +7,11 @@
 5.5.2 类模板(p172)
 
 
-//1.app进程创建
-//2.app进程加载dex文件
-//3.dex2oat
-//4.类加载(loadClass)
+//0.zygote进程创建 
+//-> 1.app启动(进程创建) 
+//-> 2.classLoader 创建过程  [很多壳都是通过 DexClassLoader 加载]
+//-> 3.执行优化: dex2oat (可以关闭)
+//-> 4.使用 classLoader 加载类
 
 
 //【7.1 art虚拟机创建、启动流程】
@@ -325,6 +326,7 @@ mirror::Class* ClassLinker::DefineClass(Thread* self,
             return class_table;
          }
          //【3*】将DexCache对象存入ClassTable的strong_roots_ 中
+         Handle<mirror::DexCache> h_dex_cache(hs.NewHandle(AllocDexCache(self, dex_file, linear_alloc)));
          table->InsertStrongRoot(h_dex_cache.Get());
          
     }
@@ -554,6 +556,7 @@ bool ClassLinker::InitializeClass(Thread* self,
 
 
 //【dex2oat流程！ aosp8.1.0】
+// 很多壳都是通过 DexClassLoader 加载，所以从 DexClassLoader 开始分析
 //http://aospxref.com/android-7.0.0_r7/xref/libcore/dalvik/src/main/java/dalvik/system/DexClassLoader.java
 new DexClassLoader(String dexPath, String optimizedDirectory,String librarySearchPath, ClassLoader parent) {
     //http://aospxref.com/android-7.0.0_r7/xref/libcore/dalvik/src/main/java/dalvik/system/BaseDexClassLoader.java
@@ -575,6 +578,7 @@ new DexClassLoader(String dexPath, String optimizedDirectory,String librarySearc
                                 return DexFile.loadDex(file.getPath(), optimizedPath, 0, loader, elements){
                                     if (optimizedDirectory == null) {
                                         return new DexFile(file, loader, elements){
+                                           //【*】mCookie来源
                                            //http://aospxref.com/android-7.0.0_r7/xref/libcore/dalvik/src/main/java/dalvik/system/DexFile.java#112
                                            mCookie = openDexFile(fileName, null, 0, loader, elements);
                                            mInternalCookie = mCookie;
@@ -648,43 +652,67 @@ private static Object openDexFile(String sourceName, String outputName,
                 }
             } 
             
-            //【7.8.2和7.8.3_ClassLinker】
-            //dex2oat编译成功的话，AddImageSpace会将类信息装入到dex_files
-            added_image_space = runtime->GetClassLinker()->AddImageSpace(image_space.get(),
-                                                                         h_loader,
-                                                                         dex_elements,
-                                                                         dex_location,
-                                                                         /*out*/&dex_files,
-                                                                         /*out*/&temp_error_msg);
+            //情况1：dex2oat编译成功的情况
+            //http://aospxref.com/android-8.0.0_r36/xref/art/runtime/oat_file_assistant.cc?fi=LoadDexFiles#LoadDexFiles
+            dex_files = oat_file_assistant.LoadDexFiles(*source_oat_file, dex_location){
+                const OatFile::OatDexFile* oat_dex_file = oat_file.GetOatDexFile(dex_location, nullptr, &error_msg);
+                //http://aospxref.com/android-8.0.0_r36/xref/art/runtime/oat_file.cc
+                std::unique_ptr<const DexFile> dex_file = oat_dex_file->OpenDexFile(&error_msg){
+                    //http://aospxref.com/android-8.1.0_r81/xref/art/runtime/dex_file.cc
+                    return DexFile::Open(dex_file_pointer_, FileSize(), dex_file_location_, dex_file_location_checksum_,
+                                           this, kVerify, kVerifyChecksum, error_msg){
+                        //http://aospxref.com/android-8.1.0_r81/xref/art/runtime/dex_file.cc#OpenCommon
+                        return OpenCommon(base, size, location, location_checksum,
+                                          oat_dex_file, verify, verify_checksum, error_msg){
+                            
+                            std::unique_ptr<DexFile> dex_file(
+                                    //【*2】android_unpacker的第2个脱壳点(dex)
+                                    //http://aospxref.com/android-8.1.0_r81/xref/art/runtime/dex_file.cc
+                                    new DexFile(base, size, location,  location_checksum, oat_dex_file)
+                            );
+                            return dex_file;
+                        }
+                    }
+                }
+            }
             
-            //dex2oat编译失败 or 被阻断的情况
+            //情况2：dex2oat编译失败 or 被阻断的情况
             //【A_7.3.2.2_OatFileManager_extra2】  
             if (dex_files.empty()) {
                 //调用：http://aospxref.com/android-8.0.0_r36/xref/art/runtime/oat_file_manager.cc?fi=OpenDexFilesFromOat#771
                 //调用：DexFile::Open(dex_location, dex_location, kVerifyChecksum, /*out*/ &error_msg, &dex_files)) {                    
                 //声明：http://aospxref.com/android-8.0.0_r36/xref/art/runtime/dex_file.cc#212
+                //(-1)
                 bool DexFile::Open(const char* filename,
                                    const std::string& location,
                                    bool verify_checksum,
                                    std::string* error_msg,
                                    std::vector<std::unique_ptr<const DexFile>>* dex_files) {
                        
-                    //【android_unpacker的第1个脱壳点(dex)】
+                    //【*1】android_unpacker的第1个脱壳点(dex)
                     File fd = OpenAndReadMagic(filename, &magic, error_msg);
                     
-                    //http://aospxref.com/android-8.1.0_r81/xref/art/runtime/dex_file.cc#OpenFile
-                    std::unique_ptr<const DexFile> dex_file(DexFile::OpenFile(fd.Release(),
+                    
+                    //调用默认复制构造函数
+                    /*std::unique_ptr<const DexFile> dex_file(DexFile::OpenFile(fd.Release(),
                                                               location,
-                                                              /* verify */ true,
+                                                              true,
                                                               verify_checksum,
-                                                              error_msg)){
+                                                              error_msg));
+                    */        
+                    //等价转换后进行分析
+                    //http://aospxref.com/android-8.1.0_r81/xref/art/runtime/dex_file.cc#OpenFile                    
+                    DexFile tmpFile =  DexFile::OpenFile(fd.Release(), location, /* verify */ true, 
+                                                        verify_checksum,error_msg){
                                                                   
-                        //【将dex文件映射进内存】
+                        //【*】将dex文件映射进内存
+                        //std::unique_ptr<MemMap> map;
                         map.reset(MemMap::MapFile(length, PROT_READ, MAP_PRIVATE, fd,
                                               0, /*low_4gb*/false,location.c_str(),error_msg));
                         
+                        //【*2】android_unpacker的第2个脱壳点(dex)
                         //http://aospxref.com/android-8.1.0_r81/xref/art/runtime/dex_file.cc#OpenCommon                                            
-                        std::unique_ptr<DexFile> dex_file = OpenCommon(map->Begin(),
+                        std::unique_ptr<DexFile> dex_file = OpenCommon(map->Begin(),           //这里就是内存地址了！
                                                                          map->Size(),
                                                                          location,
                                                                          dex_header->checksum_,
@@ -693,19 +721,20 @@ private static Object openDexFile(String sourceName, String outputName,
                                                                          verify_checksum,
                                                                          error_msg){
                                                                              
-                                //【android_unpacker的第2个脱壳点(dex)】
-                                //http://aospxref.com/android-8.1.0_r81/xref/art/runtime/dex_file.cc#DexFile
-                                std::unique_ptr<DexFile> dex_file(new DexFile(base,
-                                                                    size,
-                                                                    location,
-                                                                    location_checksum,
-                                                                    oat_dex_file)){
-                                                                        
-                                        ///////////////////////////////////////                                  
-                                                                        
-                                }                         
+                            //http://aospxref.com/android-8.1.0_r81/xref/art/runtime/dex_file.cc#DexFile
+                            std::unique_ptr<DexFile> dex_file(new DexFile(base,
+                                                                        size,
+                                                                        location,
+                                                                        location_checksum,
+                                                                        oat_dex_file)
+                                                              ); 
+                            return dex_file;                    
                         }                                     
                     } 
+                    
+                    //调用默认复制构造函数
+                    std::unique_ptr<const DexFile> dex_file(tmpFile)
+                    return true;
                 }
             }    
         }                                           
@@ -760,8 +789,8 @@ int main(int argc, char** argv) {
             */
             
             //【9.4.2 part2】
-            /*
-            【9.4.2.2】 
+            
+            /*【9.4.2.2】 
             OAT和ELF的关系
                 ·一个命名为 oatdata 的symbol。参考4.2.2.3节的介绍可知，该符号的value字段标记一个虚拟内存的地址，
                                             它恰好是.rodata的起始位置。而该符号的size取值也正好与.rodata的size相等。

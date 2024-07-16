@@ -64,6 +64,7 @@ private:
     
     //ClassSet存储类的hash，用于查找类
     std::vector<ClassSet> classes_ GUARDED_BY(lock_);
+    
     //strong_roots_ 存储 DexCache ，对应Dex文件内容
     //【DexCache详情：A_8.7.1_初识ArtFiled和ArtMethod】
     std::vector<GcRoot<mirror::Object>> strong_roots_;
