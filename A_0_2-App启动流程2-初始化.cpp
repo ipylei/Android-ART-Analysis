@@ -56,10 +56,12 @@ public Application LoadedApk::makeApplication(boolean forceDefaultAppClass,
     }
 
     try {
+        //【3.3.4】
         //获取类加载器
         java.lang.ClassLoader cl = getClassLoader();
         ContextImpl appContext = ContextImpl.createAppContext(mActivityThread, this);
         
+        //【3.3.5】
         //创建 Application 对象
         //http://androidxref.com/4.4.3_r1.1/xref/frameworks/base/core/java/android/app/Instrumentation.java
         app = mActivityThread.mInstrumentation.newApplication(cl, appClass, appContext){
@@ -68,7 +70,7 @@ public Application LoadedApk::makeApplication(boolean forceDefaultAppClass,
                 Application app = (Application)clazz.newInstance();
                 //http://androidxref.com/4.4.3_r1.1/xref/frameworks/base/core/java/android/app/Application.java
                 app.attach(context){
-                    Application::attachBaseContext(context);
+                    this.attachBaseContext(context);
                     mLoadedApk = ContextImpl.getImpl(context).mPackageInfo;
                 }
                 return app;
@@ -195,14 +197,14 @@ public ClassLoader ApplicationLoaders::getClassLoader(String zip,
 
 【3.3.5】 创建Application对象
 //http://androidxref.com/4.4.3_r1.1/xref/frameworks/base/core/java/android/app/Instrumentation.java
-public Application newApplication(ClassLoader cl, 
+public Application Instrumentation::newApplication(
+                                   ClassLoader cl, 
                                    String className,
                                    Context context) throws InstantiationException, IllegalAccessException, ClassNotFoundException {
     //c1 是前面获取的类加载器：PathClassLoader 实例
     return newApplication(cl.loadClass(className), context);
 }
-static public Application newApplication(Class<?> clazz, Context context)
-        throws InstantiationException, IllegalAccessException, ClassNotFoundException {
+static public Application Instrumentation::newApplication(Class<?> clazz, Context context) throws InstantiationException, IllegalAccessException, ClassNotFoundException {
     Application app = (Application)clazz.newInstance();
     app.attach(context);
     return app;
@@ -267,7 +269,8 @@ boolean ActivityStackSupervisor::attachApplicationLocked(ProcessRecord app, bool
 
 //（Service 端 -> Client 端）
 //http://androidxref.com/4.4.3_r1.1/xref/frameworks/base/services/java/com/android/server/am/ActivityStackSupervisor.java#realStartActivityLocked
-final boolean realStartActivityLocked(ActivityRecord r,
+final boolean ActivityStackSupervisor::realStartActivityLocked(
+                                      ActivityRecord r,
                                       ProcessRecord app, 
                                       boolean andResume,  //true
                                       boolean checkConfig //true
@@ -451,7 +454,7 @@ private void ActivityThread::handleLaunchActivity(ActivityClientRecord r, Intent
 
 //创建Activity对象，并调用其.OnCreate()方法
 //http://androidxref.com/4.4.3_r1.1/xref/frameworks/base/core/java/android/app/ActivityThread.java
-private Activity performLaunchActivity(ActivityClientRecord r, Intent customIntent) {
+private Activity ActivityThread::performLaunchActivity(ActivityClientRecord r, Intent customIntent) {
     // System.out.println("##### [" + System.currentTimeMillis() + "] ActivityThread.performLaunchActivity(" + r + ")");
 
     ActivityInfo aInfo = r.activityInfo;
@@ -462,8 +465,7 @@ private Activity performLaunchActivity(ActivityClientRecord r, Intent customInte
 
     ComponentName component = r.intent.getComponent();
     if (component == null) {
-        component = r.intent.resolveActivity(
-            mInitialApplication.getPackageManager());
+        component = r.intent.resolveActivity(mInitialApplication.getPackageManager());
         r.intent.setComponent(component);
     }
 
@@ -476,7 +478,7 @@ private Activity performLaunchActivity(ActivityClientRecord r, Intent customInte
     try {
         java.lang.ClassLoader cl = r.packageInfo.getClassLoader();
         
-        //[*1]创建Activity对象！
+        //[*1]创建 Activity 对象！
         //http://androidxref.com/4.4.3_r1.1/xref/frameworks/base/core/java/android/app/Instrumentation.java
         activity = mInstrumentation.newActivity(cl, component.getClassName(), r.intent){
             //[*]使用 PathClassLoader 的实例去加载Class！

@@ -15,7 +15,7 @@
 并指定android.app.ActivityThread类的main方法为入口函数
 */
 //http://androidxref.com/4.4.3_r1.1/xref/frameworks/base/services/java/com/android/server/am/ActivityManagerService.java
-private final void startProcessLocked(ProcessRecord app, String hostingType, String hostingNameStr) {
+private final void ActivityManagerService::startProcessLocked(ProcessRecord app, String hostingType, String hostingNameStr) {
     
     ...
     Process.ProcessStartResult startResult = Process.start("android.app.ActivityThread",
@@ -28,7 +28,7 @@ private final void startProcessLocked(ProcessRecord app, String hostingType, Str
 然后调用Looper.loop()方法进入消息循环。
 */
 //http://androidxref.com/4.4.3_r1.1/xref/frameworks/base/core/java/android/app/ActivityThread.java
-public static void main(String[] args) {
+public static void ActivityThread::main(String[] args) {
     
     ......
     Looper.prepareMainLooper();
@@ -250,7 +250,7 @@ private class H extends Handler {
                 Trace.traceBegin(Trace.TRACE_TAG_ACTIVITY_MANAGER, "bindApplication");
                 AppBindData data = (AppBindData)msg.obj;
                 
-                //[*]调用 handleBindApplication 对象处理传递过来的data对象数据
+                //[*]调用 ActivityThread::handleBindApplication() 处理传递过来的data对象数据
                 handleBindApplication(data);
                 Trace.traceEnd(Trace.TRACE_TAG_ACTIVITY_MANAGER);
                 break;
@@ -264,13 +264,13 @@ private class H extends Handler {
 public final boolean Handler::sendMessage(Message msg){
     return sendMessageDelayed(msg, 0);
 }
-public final boolean sendMessageDelayed(Message msg, long delayMillis){
+public final boolean Handler::sendMessageDelayed(Message msg, long delayMillis){
     if (delayMillis < 0) {
         delayMillis = 0;
     }
     return sendMessageAtTime(msg, SystemClock.uptimeMillis() + delayMillis);
 }
-public boolean sendMessageAtTime(Message msg, long uptimeMillis) {
+public       boolean Handler::sendMessageAtTime(Message msg, long uptimeMillis) {
     MessageQueue queue = mQueue;
     if (queue == null) {
         RuntimeException e = new RuntimeException(
@@ -280,14 +280,14 @@ public boolean sendMessageAtTime(Message msg, long uptimeMillis) {
     }
     return enqueueMessage(queue, msg, uptimeMillis);
 }
-private boolean enqueueMessage(MessageQueue queue, Message msg, long uptimeMillis) {
+private      boolean Handler::enqueueMessage(MessageQueue queue, Message msg, long uptimeMillis) {
     msg.target = this;
     if (mAsynchronous) {
         msg.setAsynchronous(true);
     }
     return queue.enqueueMessage(msg, uptimeMillis);
 }
-public void dispatchMessage(Message msg) {
+public void Handler::dispatchMessage(Message msg) {
     if (msg.callback != null) {
         handleCallback(msg);
     } else {
