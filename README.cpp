@@ -8,10 +8,13 @@
 
 
 //0.zygote进程创建 
-//-> 1.app启动(进程创建) 
-//-> 2.classLoader 创建过程  [很多壳都是通过 DexClassLoader 加载]
-//-> 3.执行优化: dex2oat (可以关闭)
-//-> 4.使用 classLoader 加载类
+//-> 1    app启动(进程创建) 
+//-> 2.1 .dex的加载流程[等价于classLoader创建过程，很多壳都是通过 DexClassLoader 加载]
+//-> 2.2 .so的加载流程[linker相关]
+
+
+//-> 3   dex2oat流程
+//-> 4   classloader.loadClass();
 
 
 //【7.1 art虚拟机创建、启动流程】
@@ -297,7 +300,7 @@ mirror::Class* ClassLinker::DefineClass(Thread* self,
 
     
     //注册DexFile对象，包含如下操作：   
-    //【1*】将classLoader 对象存入 class_liner中!
+    //【1*】将classLoader 对象存入 class_linker中!
     //【2*】给classLoader 对象创建一个classTable对象
     //【3*】将DexCache对象存入ClassTable的strong_roots_ 中 (std::vector<GcRoot<mirror::Object>>)
     mirror::DexCache* dex_cache = RegisterDexFile(dex_file, class_loader.Get()){

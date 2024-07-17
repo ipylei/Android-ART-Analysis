@@ -3,8 +3,9 @@
 (1)点击APP图标，产生Click Event事件；
 (2)Launcher 程序接收到Click Event事件，调用startActivity(Intent)，通过Binder IPC机制调用ActivityManager Service的服务；
 (3)Activity Manager Service 会调用 startProcessLocked 方法来创建新的进程；
-(4)startProcessLocked 方法调用Process类的静态成员函数start来创建这个APP的进程，
+(4)startProcessLocked 方法调用Process类的静态成员函数start与 打开socket与zygote进程进行通信，
     并指定APP进程的入口函数为android.app.ActivityThread 类的静态成员函数main；
+    zygote fork出app进程，并执行"android.app.ActivityThread.main"
 (5)main方法成功创建 ActivityThread 对象后，再调用 attach 方法完成初始化，然后进入消息循环，直到进程退出
 */
 
@@ -106,7 +107,7 @@ public final void ActivityManagerService::attachApplication(IApplicationThread t
 //（Service 端 -> Client 端）
 //http://androidxref.com/4.4.3_r1.1/xref/frameworks/base/services/java/com/android/server/am/ActivityManagerService.java
 private final boolean ActivityManagerService::attachApplicationLocked(IApplicationThread thread, int pid) {
-    //创建 app对象！
+    //创建app对象！
     ProcessRecord app;
     if (pid != MY_PID && pid >= 0) {
         synchronized (mPidsSelfLocked) {
@@ -334,7 +335,7 @@ private void ActivityThread::handleBindApplication(AppBindData data) {
         //http://androidxref.com/4.4.3_r1.1/xref/frameworks/base/core/java/android/app/Instrumentation.java
         app = mActivityThread.mInstrumentation.newApplication(cl, appClass, appContext){
             return Instrumentation::newApplication(cl.loadClass(className), context){
-                //直接创建app对象
+                //直接创建Application对象
                 Application app = (Application)clazz.newInstance();
                 //http://androidxref.com/4.4.3_r1.1/xref/frameworks/base/core/java/android/app/Application.java
                 app.attach(context){

@@ -356,6 +356,7 @@ public final void ApplicationThread::scheduleLaunchActivity(Intent intent, IBind
     r.autoStopProfiler = autoStopProfiler;
 
     updatePendingConfiguration(curConfig);
+    
     //调用 ActivityThread::sendMessage(int what, Object obj)
     sendMessage(H.LAUNCH_ACTIVITY, r); 
 }
@@ -481,7 +482,7 @@ private Activity ActivityThread::performLaunchActivity(ActivityClientRecord r, I
         //[*1]创建 Activity 对象！
         //http://androidxref.com/4.4.3_r1.1/xref/frameworks/base/core/java/android/app/Instrumentation.java
         activity = mInstrumentation.newActivity(cl, component.getClassName(), r.intent){
-            //[*]使用 PathClassLoader 的实例去加载Class！
+            //[*]使用 PathClassLoader 的实例去加载 Class！
             return (Activity)cl.loadClass(className).newInstance();
         }
         StrictMode.incrementExpectedActivityCount(activity.getClass());
@@ -519,7 +520,8 @@ private Activity ActivityThread::performLaunchActivity(ActivityClientRecord r, I
             mInstrumentation.callActivityOnCreate(activity, r.state){
                 //http://androidxref.com/4.4.3_r1.1/xref/frameworks/base/core/java/android/app/Activity.java
                     activity.performCreate(icicle){
-                        //[*]onCreate(icicle);
+                        //[*] 调用onCreate()函数！
+                        onCreate(icicle);
                         mVisibleFromClient = !mWindow.getWindowStyle().getBoolean(com.android.internal.R.styleable.Window_windowNoDisplay, false);
                         mFragments.dispatchActivityCreated();                     
                 } 
