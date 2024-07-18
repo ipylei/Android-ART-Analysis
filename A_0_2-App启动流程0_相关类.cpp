@@ -36,6 +36,9 @@ public final class ActivityThread {
     //在 ActivityThread::handleBindApplication() 中初始化
     //mInstrumentation = new Instrumentation();
     Instrumentation mInstrumentation;
+    
+    //在 ActivityThread::getPackageInfo() 中初始化
+    //mPackages.put(aInfo.packageName, new WeakReference<LoadedApk>(packageInfo));
     final ArrayMap<String, WeakReference<LoadedApk>> mPackages = new ArrayMap<String, WeakReference<LoadedApk>>();
     
     
@@ -161,6 +164,10 @@ public final class LoadedApk {
     */
     private ClassLoader mClassLoader;   //所以为一个 PathClassloader的实例
     
+    //构造函数中初始化：mApplicationInfo 
+    private ApplicationInfo mApplicationInfo;
+    
+    //public Application makeApplication(...){mApplication = app;}
     private Application mApplication;   //倒反天罡？与 ActivityThread的属性.mInitialApplication是同一个
     
     

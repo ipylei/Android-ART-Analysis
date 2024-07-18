@@ -12,7 +12,6 @@
 //-> 2.1 .dex的加载流程[等价于classLoader创建过程，很多壳都是通过 DexClassLoader 加载]
 //-> 2.2 .so的加载流程[linker相关]
 
-
 //-> 3   dex2oat流程
 //-> 4   classloader.loadClass();
 
@@ -257,15 +256,43 @@ public Class<?>  ClassLoader::loadClass(String name){
                                                                   jclass,
                                                                   jstring javaName,
                                                                   jobject javaLoader,
-                                                                  jobject cookie,
+                                                                  jobject cookie,  //[*] mCookie
                                                                   jobject dexFile) {
-                                                                      
-                                ClassLinker* class_linker = Runtime::Current()->GetClassLinker();                                      
+                                             
+                                ClassLinker* class_linker = Runtime::Current()->GetClassLinker();  
+                                Handle<mirror::ClassLoader> class_loader( hs.NewHandle(soa.Decode<mirror::ClassLoader*>(javaLoader)));
+                                //注册DexFile对象，包含如下操作：   
+                                //【1*】将classLoader 对象存入 class_linker中!
+                                //【2*】给classLoader 对象创建一个classTable对象
+                                //【3*】将DexCache对象存入ClassTable的strong_roots_ 中 (std::vector<GcRoot<mirror::Object>>)
                                 class_linker->RegisterDexFile(*dex_file, class_loader.Get()){
                                     ClassTable* table;
-                                    //给classLoader对象创建一个classTable对象
-                                    table = InsertClassTableForClassLoader(class_loader);
-                                    //将DexCache对象存入ClassTable的strong_roots_ 中 (std::vector<GcRoot<mirror::Object>>)
+                                    table = InsertClassTableForClassLoader(class_loader){
+                                        ClassTable* class_table = class_loader->GetClassTable();
+                                        if (class_table == nullptr) {
+                                            RegisterClassLoader(class_loader){
+                                                  Thread* const self = Thread::Current();
+                                                  ClassLoaderData data;
+                                                  // Create and set the class table.
+                                                  data.class_table = new ClassTable;
+                                                  //【2*】给classLoader 对象创建一个classTable对象
+                                                  class_loader->SetClassTable(data.class_table);
+                                                  // Create and set the linear allocator.
+                                                  data.allocator = Runtime::Current()->CreateLinearAlloc();
+                                                  class_loader->SetAllocator(data.allocator);
+                                                  
+                                                  //【1*】将classLoader 对象存入 class_linker中!
+                                                  // Add to the list so that we know to free the data later.
+                                                  class_loaders_.push_back(data);
+                                            }
+                                            
+                                            class_table = class_loader->GetClassTable();
+                                            DCHECK(class_table != nullptr);
+                                        }
+                                        return class_table;
+                                    }
+                                    //【3*】将DexCache对象存入ClassTable的strong_roots_ 中
+                                    Handle<mirror::DexCache> h_dex_cache(hs.NewHandle(AllocDexCache(self, dex_file, linear_alloc)));
                                     table->InsertStrongRoot(h_dex_cache.Get());
                                 }                                
                                                                       
@@ -304,7 +331,8 @@ mirror::Class* ClassLinker::DefineClass(Thread* self,
     //【2*】给classLoader 对象创建一个classTable对象
     //【3*】将DexCache对象存入ClassTable的strong_roots_ 中 (std::vector<GcRoot<mirror::Object>>)
     mirror::DexCache* dex_cache = RegisterDexFile(dex_file, class_loader.Get()){
-         table = InsertClassTableForClassLoader(class_loader){
+        ClassTable* table;
+        table = InsertClassTableForClassLoader(class_loader){
             ClassTable* class_table = class_loader->GetClassTable();
             if (class_table == nullptr) {
                 RegisterClassLoader(class_loader){
@@ -318,7 +346,7 @@ mirror::Class* ClassLinker::DefineClass(Thread* self,
                       data.allocator = Runtime::Current()->CreateLinearAlloc();
                       class_loader->SetAllocator(data.allocator);
                       
-                      //【1*】将classLoader 对象存入 class_liner中!
+                      //【1*】将classLoader 对象存入 class_linker中!
                       // Add to the list so that we know to free the data later.
                       class_loaders_.push_back(data);
                 }
@@ -327,7 +355,7 @@ mirror::Class* ClassLinker::DefineClass(Thread* self,
                 DCHECK(class_table != nullptr);
             }
             return class_table;
-         }
+        }
          //【3*】将DexCache对象存入ClassTable的strong_roots_ 中
          Handle<mirror::DexCache> h_dex_cache(hs.NewHandle(AllocDexCache(self, dex_file, linear_alloc)));
          table->InsertStrongRoot(h_dex_cache.Get());
@@ -498,8 +526,72 @@ mirror::Class* ClassLinker::DefineClass(Thread* self,
 
 }
 
-
-//【8.7.7 类初始化、校验】
+//【8.7.7 类加载入口、类初始化、校验】
+//http://aospxref.com/android-7.0.0_r7/xref/libcore/ojluni/src/main/java/java/lang/Class.java#classForName
+Class.forName(){
+    return forName(className, true, VMStack.getCallingClassLoader()){
+        //http://aospxref.com/android-7.0.0_r7/xref/art/runtime/native/java_lang_Class.cc#57
+        result = classForName(name, initialize, loader){
+            //1.去寻找Class  【7.8.2和7.8.3_ClassLinker.cpp】
+            //http://aospxref.com/android-7.0.0_r7/xref/art/runtime/class_linker.cc#2341
+            handle = class_linker->FindClass(soa.Self(), descriptor.c_str(), class_loader){
+                //已经加载过的情况
+                mirror::Class* klass = LookupClass(self, descriptor, hash, class_loader.Get());
+                if (klass != nullptr) {    
+                    return EnsureResolved(self, descriptor, klass);
+                }
+                //bootstrap类，没有classloader，参考【8.7.9.1.2 BootClassLoader介绍】
+                else if (class_loader.Get() == nullptr) {...}
+                //没有加载过的情况
+                else {
+                    //http://aospxref.com/android-7.0.0_r7/xref/art/runtime/class_linker.cc#2220
+                    bool ret = FindClassInPathClassLoader(soa, self, descriptor, hash, class_loader, &cp_klass){
+                        //result = &cp_klass
+                        
+                        //双亲委派！
+                        Handle<mirror::ClassLoader> h_parent(hs.NewHandle(class_loader->GetParent()));
+                        bool recursive_result = FindClassInPathClassLoader(soa, self, descriptor, hash, h_parent, result);
+                        if (!recursive_result) {
+                            return false;
+                        }
+                        if (*result != nullptr) {
+                            return true;  
+                        }
+                        
+                        //真正的逻辑
+                        mirror::Class* klass = DefineClass(self, descriptor, hash, class_loader, *cp_dex_file, *dex_class_def);
+                        if (klass == nullptr) {
+                            return true;
+                        }
+                    } 
+                    
+                    if(ret){
+                        if (cp_klass != nullptr) { 
+                            return cp_klass;   
+                        }
+                    }
+                    
+                    //如果通过 ClassLoader 加载目标类失败，则下面的代码将转入Java层去执行 ClassLoader 的类加载
+                    //接下来的代码将进入Java层去 ClassLoader 对象的 loadClass 函数
+                    result.reset(soa.Env()->CallObjectMethod(class_loader_object.get(), WellKnownClasses::java_lang_ClassLoader_loadClass, class_name_object.get()));
+                }    
+                
+            }
+            Handle<mirror::Class> c(hs.NewHandle(handle));
+             
+            //2.初始化Class
+            //http://aospxref.com/android-7.0.0_r7/xref/art/runtime/class_linker.cc#4976
+            class_linker->EnsureInitialized(soa.Self(), c, true, true){
+                const bool success = InitializeClass(self, c, can_init_fields, can_init_parents);
+                return success;
+            }
+            
+            //3.返回
+            return soa.AddLocalReference<jclass>(c.Get());
+        }
+        return result;
+    }
+}
 //[class_linker.cc->ClassLinker::InitializeClass]
 bool ClassLinker::InitializeClass(Thread* self, 
                                   Handle<mirror::Class> klass,

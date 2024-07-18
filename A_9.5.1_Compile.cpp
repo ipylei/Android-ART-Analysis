@@ -317,7 +317,20 @@ static void CompileMethod(Thread* self, CompilerDriver* driver, const DexFile::C
     } 
 	else {
         const VerifiedMethod* verified_method = driver->GetVerificationResults()->GetVerifiedMethod(method_ref);
-        ....
+        bool compile = compilation_enabled &&
+            // Basic checks, e.g., not <clinit>.
+            driver->GetVerificationResults()
+                ->IsCandidateForCompilation(method_ref, access_flags) &&
+            // Did not fail to create VerifiedMethod metadata.
+            verified_method != nullptr &&
+            // Do not have failures that should punt to the interpreter.
+            !verified_method->HasRuntimeThrow() &&
+            (verified_method->GetEncounteredVerificationFailures() &
+                (verifier::VERIFY_ERROR_FORCE_INTERPRETER | verifier::VERIFY_ERROR_LOCKING)) == 0 &&
+            // Is eligable for compilation by methods-to-compile filter.
+            driver->IsMethodToCompile(method_ref) &&
+            driver->ShouldCompileBasedOnProfile(method_ref);
+        
         if (compile) {
             /*dex到机器码的编译优化将由Optimizing的Compile来完成。该函数返回一个CompiledMethod对象。
             注意，如果一个Java方法不能做dex到机器码优化的话，该函数将返回nullptr。   

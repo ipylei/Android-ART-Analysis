@@ -108,7 +108,7 @@ static jclass Class_classForName(JNIEnv* env, jclass,
     ClassLinker* class_linker = Runtime::Current()->GetClassLinker();
 	
     /*调用ClassLinker 的 FindClass，由于class_loader 等于nullptr，
-	根据8.7节对 FindClass 的介绍可知，它将只在ClassLinker 的 boot_class_table_ 中搜索目标类 
+	根据8.7.8节对 FindClass 的介绍可知，它将只在ClassLinker 的 boot_class_table_ 中搜索目标类 
 	*/
     Handle<mirror::Class> c(hs.NewHandle(class_linker->FindClass(soa.Self(),descriptor.c_str(), class_loader)));
 	......

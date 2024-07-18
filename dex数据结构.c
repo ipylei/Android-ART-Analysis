@@ -12,8 +12,8 @@ string_ids
 type_ids         数组，元素类型为 type_id_item。存储类型相关的信息（由TypeDescriptor描述）。
 proto_ids        主要功能就是用于描述成员函数的参数、返回值类型，同时包含ShortyDescriptor信息
 filed_ids        数组，元素类型为 field_id_item，存储成员变量信息，包括变量名、类型等
-memthod_ids      数组，元素类型为 method_id_item，存储成员函数信息包括函数名、参数和返回值类型等。
-class_def _item_list  数组，元素类型为 class_def_item，存储类的信息
+method_ids       数组，元素类型为 method_id_item，存储成员函数信息包括函数名、参数和返回值类型等。
+class_defs       数组，元素类型为 class_def_item，存储类的信息
 data             Dex文件重要的数据内容都存在data区域里
 link_data        理论上是预留区域，没有特别的作用
 

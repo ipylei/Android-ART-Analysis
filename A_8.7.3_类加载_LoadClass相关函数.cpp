@@ -29,7 +29,7 @@ void ClassLinker::LoadClass(Thread * self,
 //8.7.3.1.1　LoadClassMembers  如其名所示，LoadClassMembers 将为目标Class对象加载类的成员，代码如下所示。
 //[class_linker.cc->ClassLinker::LoadClassMembers]
 void ClassLinker::LoadClassMembers(Thread * self,
-									const DexFile & dex_file,
+									const DexFile & dex_file,   //这是一个脱壳点
 									const uint8_t * class_data,
 									Handle < mirror::Class > klass,
 									const OatFile::OatClass * oat_class) {

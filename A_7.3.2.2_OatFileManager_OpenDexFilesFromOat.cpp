@@ -87,6 +87,7 @@ std::vector<std::unique_ptr<const DexFile>> OatFileManager::OpenDexFilesFromOat(
   if (source_oat_file != nullptr) {
     bool added_image_space = false;
     
+    //可执行文件？
     if (source_oat_file->IsExecutable()) {
       std::unique_ptr<gc::space::ImageSpace> image_space =
           kEnableAppImage ? oat_file_assistant.OpenImageSpace(source_oat_file) : nullptr;
@@ -137,6 +138,7 @@ std::vector<std::unique_ptr<const DexFile>> OatFileManager::OpenDexFilesFromOat(
         }
       }
     }    
+    
     //[*]goto here
     if (!added_image_space) {
       DCHECK(dex_files.empty());

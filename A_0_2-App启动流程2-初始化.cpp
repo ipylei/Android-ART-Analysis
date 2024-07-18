@@ -8,9 +8,11 @@ public final LoadedApk ActivityThread::getPackageInfoNoCheck(ApplicationInfo ai,
 //http://androidxref.com/4.4.3_r1.1/xref/frameworks/base/core/java/android/app/ActivityThread.java
 private LoadedApk ActivityThread::getPackageInfo(ApplicationInfo aInfo, CompatibilityInfo compatInfo,
         ClassLoader baseLoader, boolean securityViolation, boolean includeCode) {
+            
     synchronized (mResourcesManager) {
         WeakReference<LoadedApk> ref;
         if (includeCode) {
+            //goto here
             ref = mPackages.get(aInfo.packageName);
         } else {
             ref = mResourcePackages.get(aInfo.packageName);
@@ -56,13 +58,11 @@ public Application LoadedApk::makeApplication(boolean forceDefaultAppClass,
     }
 
     try {
-        //【3.3.4】
-        //获取类加载器
+        //【3.3.4】 获取类加载器
         java.lang.ClassLoader cl = getClassLoader();
         ContextImpl appContext = ContextImpl.createAppContext(mActivityThread, this);
         
-        //【3.3.5】
-        //创建 Application 对象
+        //【3.3.5】 创建 Application 对象
         //http://androidxref.com/4.4.3_r1.1/xref/frameworks/base/core/java/android/app/Instrumentation.java
         app = mActivityThread.mInstrumentation.newApplication(cl, appClass, appContext){
             return Instrumentation::newApplication(cl.loadClass(className), context){
@@ -164,7 +164,8 @@ public ClassLoader ApplicationLoaders::getClassLoader(String zip,
     ClassLoader baseParent = ClassLoader.getSystemClassLoader().getParent();
 
     synchronized (mLoaders) {
-        if (parent == null) { //goto here
+        if (parent == null) { 
+            //[*]goto here
             parent = baseParent;
         }
         
@@ -177,7 +178,7 @@ public ClassLoader ApplicationLoaders::getClassLoader(String zip,
                 return loader;
             }
             
-            //goto here
+            //[*]goto here
             Trace.traceBegin(Trace.TRACE_TAG_ACTIVITY_MANAGER, zip);
             PathClassLoader pathClassloader =Nnew PathClassLoader(zip, libPath, parent);
             Trace.traceEnd(Trace.TRACE_TAG_ACTIVITY_MANAGER);
@@ -202,15 +203,18 @@ public Application Instrumentation::newApplication(
                                    String className,
                                    Context context) throws InstantiationException, IllegalAccessException, ClassNotFoundException {
     //c1 是前面获取的类加载器：PathClassLoader 实例
+    //此时类不会初始化，即不会 执行静态代码块
     return newApplication(cl.loadClass(className), context);
 }
 static public Application Instrumentation::newApplication(Class<?> clazz, Context context) throws InstantiationException, IllegalAccessException, ClassNotFoundException {
+    //创建Application对象
+    //此时类会初始化，即执行静态代码块，然后调用构造函数创建实例
     Application app = (Application)clazz.newInstance();
     app.attach(context);
     return app;
 }
 
-
+ 
 
 【3.3.6】启动Activity
 //（Service 端）

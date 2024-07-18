@@ -22,7 +22,10 @@ void ClassLinker::LoadMethod(Thread* self,
 							const ClassDataItemIterator& it,
 							Handle<mirror::Class> klass,  
 							ArtMethod* dst) {
-								
+    /*
+    该函数主要是通过指针对内存中的dex文件进行访问，
+    获取到ArtMethod所需的相关内容后完成对ArtMethod的初始化工作。
+    */                                    
     uint32_t dex_method_idx = it.GetMemberIndex();
     const DexFile::MethodId& method_id = dex_file.GetMethodId(dex_method_idx);
     const char* method_name = dex_file.StringDataByIdx(method_id.name_idx_);
@@ -32,6 +35,7 @@ void ClassLinker::LoadMethod(Thread* self,
     dst->SetDeclaringClass(klass.Get());
 	
     //设置 dex_code_item_offset_ 成员变量
+    //该语句对当前函数所指向的内存中的smali指令的地址进行了初始化！
     dst->SetCodeItemOffset(it.GetMethodCodeItemOffset());
 	
     //设置ArtMethod ptr_sized_fields_ 结构体中的 dex_cache_resolved_methods_ 

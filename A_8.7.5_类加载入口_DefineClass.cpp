@@ -45,6 +45,7 @@ mirror::Class* ClassLinker::DefineClass(Thread* self,
     //【2*】给classLoader 对象创建一个classTable对象
     //【3*】将DexCache对象存入ClassTable的 strong_roots_ 中 (std::vector<GcRoot<mirror::Object>>)
     mirror::DexCache* dex_cache = RegisterDexFile(dex_file, class_loader.Get()){
+         ClassTable* table;
          table = InsertClassTableForClassLoader(class_loader){
             ClassTable* class_table = class_loader->GetClassTable();
             if (class_table == nullptr) {
@@ -59,7 +60,7 @@ mirror::Class* ClassLinker::DefineClass(Thread* self,
                       data.allocator = Runtime::Current()->CreateLinearAlloc();
                       class_loader->SetAllocator(data.allocator);
                       
-                      //【1*】将classLoader 对象存入 class_liner中!
+                      //【1*】将classLoader 对象存入 class_linker中!
                       // Add to the list so that we know to free the data later.
                       class_loaders_.push_back(data);
                 }

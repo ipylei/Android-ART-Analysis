@@ -319,10 +319,13 @@ private void ActivityThread::handleBindApplication(AppBindData data) {
     //step 3: 创建Instrumentation
     mInstrumentation = new Instrumentation();
     
-    /*step 4: 创建 Application 对象; 
-        在makeApplication函数中调用了newApplication，
-        在newApplication函数中又调用了app.attach(context)，
-        在attach函数中调用了Application.attachBaseContext()函数
+    /*step 4: 
+        1.获取类加载器：java.lang.ClassLoader cl = getClassLoader();
+        
+        2.创建 Application 对象; 
+            >在makeApplication函数中调用了newApplication，
+             >在newApplication函数中又调用了app.attach(context)，
+              >在attach函数中调用了Application.attachBaseContext()函数
     */
     //http://androidxref.com/4.4.3_r1.1/xref/frameworks/base/core/java/android/app/LoadedApk.java
     Application app = data.info.makeApplication(data.restrictedBackupMode, null){
@@ -356,8 +359,8 @@ private void ActivityThread::handleBindApplication(AppBindData data) {
     
     //step 6: 执行Application.Create回调
     //http://androidxref.com/4.4.3_r1.1/xref/frameworks/base/core/java/android/app/Instrumentation.java
-    mInstrumentation.callApplicationOnCreate(app){
-         app.onCreate();
+    mInstrumentation. (app){
+        app.onCreate();
     }
     
 }
