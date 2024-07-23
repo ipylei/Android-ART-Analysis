@@ -18,13 +18,13 @@ void ClassLinker::LoadField(const ClassDataItemIterator& it,
 //接着来看成员方法的加载，代码如下所示。
 //[class_linker.cc->ClassLinker::LoadMethod]
 void ClassLinker::LoadMethod(Thread* self,
-							const DexFile& dex_file,
+							const DexFile&  dex_file,
 							const ClassDataItemIterator& it,
 							Handle<mirror::Class> klass,  
 							ArtMethod* dst) {
     /*
     该函数主要是通过指针对内存中的dex文件进行访问，
-    获取到ArtMethod所需的相关内容后完成对ArtMethod的初始化工作。
+        获取到ArtMethod所需的相关内容后完成对ArtMethod的初始化工作。
     */                                    
     uint32_t dex_method_idx = it.GetMemberIndex();
     const DexFile::MethodId& method_id = dex_file.GetMethodId(dex_method_idx);

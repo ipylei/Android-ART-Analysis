@@ -89,9 +89,10 @@ void ClassLinker::LoadClassMembers(Thread * self,
 			（3）[copied_methods_offset_,...)为剩下的诸如 miranda 函数等内容。
 			
 		下面代码中，先分配1和2所需要的元素空间，然后设置klass对应的成员变量，其中：
-        klass-> methods_ 为AllocArtMethodArray的返回值，
+        klass-> methods_ 为 AllocArtMethodArray 的返回值，
         klass-> copied_methods_offset_ 为类direct和virtual方法个数之和
-        klass-> virtual_methods_offset_ 为类direct方法个数   */
+        klass-> virtual_methods_offset_ 为类direct方法个数   
+        */
         klass->SetMethodsPtr(
 				AllocArtMethodArray(self, allocator, it.NumDirectMethods() + it.NumVirtualMethods()), 
 				it.NumDirectMethods(), 
@@ -109,6 +110,9 @@ void ClassLinker::LoadClassMembers(Thread * self,
 			
 			//【*】加载并设置到ArtMethod
             //加载 ArtMethod 对象，并将其和字节码关联起来。
+            /*该函数主要是通过指针对内存中的dex文件进行访问，
+                获取到ArtMethod所需的相关内容后完成对ArtMethod的初始化工作。
+            */   
             LoadMethod(self, dex_file, it, klass, method);
             //注意，oat_class 信息只在LinkCode中用到。LinkCode留待10.1节介绍
             LinkCode(method, oat_class, class_def_method_index);
@@ -136,6 +140,9 @@ void ClassLinker::LoadClassMembers(Thread * self,
 			ArtMethod* method = klass->GetVirtualMethodUnchecked(i, image_pointer_size_);
 			//【*】加载并设置到ArtMethod
             //加载ArtMethod对象，并将其和字节码关联起来。
+            /*该函数主要是通过指针对内存中的dex文件进行访问，
+                获取到ArtMethod所需的相关内容后完成对ArtMethod的初始化工作。
+            */
 			LoadMethod(self, dex_file, it, klass, method);
 			//注意，oat_class 信息只在LinkCode中用到。LinkCode留待10.1节介绍
 			LinkCode(method, oat_class, class_def_method_index);

@@ -359,7 +359,8 @@ static inline bool DoCallCommon(ArtMethod* called_method,
     if (LIKELY(Runtime::Current()->IsStarted())) {
         ArtMethod* target = new_shadow_frame->GetMethod();
      
-        //如果处于调试模式，或者方法C不存在机器码，则调用 ArtInterpreterToInterpreterBridge 函数，显然，它是解释执行的继续。
+        //如果处于调试模式，或者方法C不存在机器码，则调用 ArtInterpreterToInterpreterBridge 函数，
+        //显然，它是解释执行的继续。
         //【ShouldUseInterpreterEntrypoint返回为true，则一定不是JNI方法!】
         if (ClassLinker::ShouldUseInterpreterEntrypoint(target, target->GetEntryPointFromQuickCompiledCode())) {
             ArtInterpreterToInterpreterBridge(self, code_item, new_shadow_frame, result);

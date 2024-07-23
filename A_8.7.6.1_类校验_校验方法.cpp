@@ -12,7 +12,7 @@ MethodVerifier::FailureData MethodVerifier::VerifyMethods(Thread* self,
        （1）该函数为模板函数。结合图8-7，如果模板参数kDirect为true，则校验的将是目标类中
             direct_methods 的内容，否则为 virtual_methods 的内容。
        （2）class_def 的类型为DexFile::ClassDef。它是Dex文件里的一部分，class_def中最重
-           要的信息存储在  class_data_item 中，而 class_data_item 的内容可借助迭代器it来获取。
+           要的信息存储在 class_data_item 中，而 class_data_item 的内容可借助迭代器it来获取。
        （3）self 代表当前调用的线程对象。dex_file 是目标类所在的Dex文件。
        （4）返回值的类型为 FailureData 。它是 MethodVerifier 定义的内部类，其内部有一个名为kind
         的成员变量，类型为枚举 FailureKind ，取值有如下三种情况：

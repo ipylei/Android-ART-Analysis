@@ -26,7 +26,7 @@ struct string_data_item{
 
 //字符串 - 指针
 struct string_id_item{
-    uint string_data_off;    //指明 string_data_item 位于文件的位置，也就是索引    
+    uint string_data_off;    //指明 string_data_item 位于文件的位置
 }
 
 //[类型]：字符串表示
@@ -137,7 +137,7 @@ stuct code_item{
     ushort ins_size;     
     ushort out_size;
     ushort tries_size;       
-    uint debug_info_size;
+    uint debug_info_off;
     uint insns_size;   
     ushort[] insns;   
     ushort padding;  

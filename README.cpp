@@ -239,6 +239,7 @@ public Class<?>  ClassLoader::loadClass(String name){
                 
                 element.findClass(String name, ClassLoader definingContext, List<Throwable> suppressed){
                     
+                    //【DexFile.java】
                     //Class clazz = dex.loadClassBinaryName(name, definingContext, suppressed);
                     public Class DexFile::loadClassBinaryName(String name, ClassLoader loader, List<Throwable> suppressed) {
                         
@@ -362,12 +363,10 @@ mirror::Class* ClassLinker::DefineClass(Thread* self,
          
     }
     
-    
     //这个函数将把类的状态从kStatusNotReady切换为kStatusIdx
 	//【8.7.2】  【Status】：kStatusIdx
 	ClassLinker::SetupClass(dex_file, dex_class_def, klass, class_loader.Get());
 
-    
     //插入ClassLoader对应的ClassTable的classes_中 (std::vector<ClassSet> classes_ GUARDED_BY(lock_);)
     //注意，不同的线程可以同时调用DefineClass来加载同一个类。这种线程同步直接的关系要处理好。
     mirror::Class* existing = InsertClass(descriptor, klass.Get(), hash);
@@ -526,7 +525,7 @@ mirror::Class* ClassLinker::DefineClass(Thread* self,
 
 }
 
-//【8.7.7 类加载入口、类初始化、校验】
+//【8.7.7 类加载入口(DefineClass)、类初始化、校验】
 //http://aospxref.com/android-7.0.0_r7/xref/libcore/ojluni/src/main/java/java/lang/Class.java#classForName
 Class.forName(){
     return forName(className, true, VMStack.getCallingClassLoader()){
@@ -558,8 +557,8 @@ Class.forName(){
                             return true;  
                         }
                         
-                        //真正的逻辑
-                        mirror::Class* klass = DefineClass(self, descriptor, hash, class_loader, *cp_dex_file, *dex_class_def);
+                        //真正的逻辑 (DefineClass)
+                        mirror::Class* klass = ClassLinker::DefineClass(self, descriptor, hash, class_loader, *cp_dex_file, *dex_class_def);
                         if (klass == nullptr) {
                             return true;
                         }

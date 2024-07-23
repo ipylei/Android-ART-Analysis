@@ -81,9 +81,10 @@ bool ClassLinker::InitWithoutImage(std::vector<std::unique_ptr<const DexFile>> b
     ......
 }
 /* 【总结】
-注意　InitWithoutImage 由dex2oat在生成boot镜像时使用。这几个Runtime Method对象的内容和地址将写入boot.art文件中。
+注意　InitWithoutImage 由dex2oat在生成boot镜像时使用。
+这几个Runtime Method对象的内容和地址将写入boot.art文件中。
 待到zygote进程启动完整虚拟机时，它们又会被读取并设置到Runtime对象中。
-从全流程来看，最初的设置就是在InitWithoutImage中完成的。
+从全流程来看，最初的设置就是在 InitWithoutImage 中完成的。
 */
 
 
