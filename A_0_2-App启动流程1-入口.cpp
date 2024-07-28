@@ -12,7 +12,7 @@
 
 
 【3.3.1】 指定app的入口方法
-/*startProcessLocked方法调用Process类的start方法创建应用程序的进程，
+/*startProcessLocked 方法调用Process类的start方法创建应用程序的进程，
 并指定android.app.ActivityThread类的main方法为入口函数
 */
 //http://androidxref.com/4.4.3_r1.1/xref/frameworks/base/services/java/com/android/server/am/ActivityManagerService.java

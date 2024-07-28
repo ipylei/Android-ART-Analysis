@@ -10,14 +10,15 @@ void ClassLinker::LinkCode(ArtMethod* method,
      （2）oat_method 的类型为 OatFile::OatMethod，其内容由oat文件中 OatMethod 区域对应的 OatQuickMethodHeader 信息构成。
    */
     if (oat_class != nullptr) {
-        /*获取该Java方法对应的OatMethod信息。如果它没有被编译过，则返回的OatMethod对象的code_
-          offset_取值为0。OatMethod.code_offst_指向对应机器码在oat文件中的位置。其值为0
-          就表示该方法不存在机器码。  */
+        /*获取该Java方法对应的OatMethod信息。如果它没有被编译过，则返回的OatMethod对象的 code_offset_ 取值为0。
+          OatMethod.code_offset_ 指向对应机器码在oat文件中的位置。其值为0就表示该方法不存在机器码。  
+        */
         const OatFile::OatMethod oat_method = oat_class->GetOatMethod(class_def_method_index);
             
         /*设置ArtMethod ptr_sized_fields_.entry_point_from_quick_compiled_code_ 为Oat文件区域OatQuickMethodHeader的code_。
           读者可回顾第9章图9-41"oat和art文件的关系"。code_处存储的就是该方法编译得到的机器码。
-          注意，为节省篇幅，笔者以后用机器码入口地址来指代 entry_point_from_quick_compiled_code_ 成员变量。*/
+          注意，为节省篇幅，笔者以后用机器码入口地址来指代 entry_point_from_quick_compiled_code_ 成员变量。
+        */
         oat_method.LinkMethod(method);
     }
     

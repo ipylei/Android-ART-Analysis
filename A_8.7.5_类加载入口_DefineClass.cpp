@@ -91,7 +91,6 @@ mirror::Class* ClassLinker::DefineClass(Thread* self,
     //插入ClassLoader对应的ClassTable的classes_中 (std::vector<ClassSet> classes_ GUARDED_BY(lock_);)
     //注意，不同的线程可以同时调用DefineClass来加载同一个类。这种线程同步直接的关系要处理好。
     mirror::Class* existing = InsertClass(descriptor, klass.Get(), hash);
-    
     if (existing != nullptr) {
         //existing不为空，则表示有别的线程已经在加载目标类了，下面的 EnsureResolved
         //函数将进入等待状态，直到该目标类状态变为超过 kStatusResolved 或 出错。

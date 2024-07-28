@@ -13,7 +13,8 @@ type_ids         数组，元素类型为 type_id_item。存储类型相关的�
 proto_ids        主要功能就是用于描述成员函数的参数、返回值类型，同时包含ShortyDescriptor信息
 filed_ids        数组，元素类型为 field_id_item，存储成员变量信息，包括变量名、类型等
 method_ids       数组，元素类型为 method_id_item，存储成员函数信息包括函数名、参数和返回值类型等。
-class_defs       数组，元素类型为 class_def_item，存储类的信息
+class_defs       数组，元素类型为 class_def，存储类的信息
+//-----------------------------------------------------------
 data             Dex文件重要的数据内容都存在data区域里
 link_data        理论上是预留区域，没有特别的作用
 
@@ -24,17 +25,22 @@ struct string_data_item{
     ubyte[] data;            //字符串对应的内容
 }
 
+
+//作为 string_ids 的元素
 //字符串 - 指针
 struct string_id_item{
     uint string_data_off;    //指明 string_data_item 位于文件的位置
 }
 
+
+//作为 type_ids 的元素
 //[类型]：字符串表示
 struct type_id_item{
     uint descriptor_idx;     //指向 string_ids 的索引，即对应 string_id_item
 }
 
 
+//作为 filed_ids 的元素
 //属性，对应为 ArtField
 struct field_id_item{
     //(类型) 所属类
@@ -46,6 +52,7 @@ struct field_id_item{
 }
 
 
+//作为 method_ids 的元素
 //方法，对应为 ArtMethod
 struct method_id_item{
     //(类型)    所属类
@@ -57,6 +64,7 @@ struct method_id_item{
 }
 
 
+//作为 proto_ids 的元素
 //方法签名类型：描述成员函数的参数、返回值类型
 struct proto_id_item{
     //(字符串)  (简短描述)参数和返回值的类型的简单描述，比如所有引用类型都用"L"统一表示
@@ -66,7 +74,6 @@ struct proto_id_item{
     //(多类型2) (具体描述)参数类型
     uint parameters_off;     //不为0，存储 type_list 的结构，用于描述函数参数的类型。
 }
-
 
 //数组，存放多个参数(类型)
 struct type_list{
@@ -80,6 +87,7 @@ struct type_item{
 }
 
 
+//作为 class_defs 的元素
 //存储类信息
 struct class_def{
     uint class_idx;          //指向type_ids，即对应 type_id_item ，代表本类的类型
@@ -126,7 +134,9 @@ struct endoded_filed{
 struct endoded_method{
     uleb128 method_idx_diff;           //指向 method_id_item (memthod_ids的下标)
                                          //第一个元素的 method_idx_diff 取值为索引；后续的 method_idx_diff 取值为和前一个索引值的差!
+    
     uleb128 access_flags;              //访问权限
+    
     uleb128 code_off;                  //指向文件对应位置处，那里有一个类型为 code_item 的结构体
                                          //code_item 类似于Class文件的Code属性，即存放指令 
 }

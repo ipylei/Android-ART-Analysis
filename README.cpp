@@ -381,7 +381,16 @@ mirror::Class* ClassLinker::DefineClass(Thread* self,
 								const DexFile::ClassDef & dex_class_def,
 								Handle < mirror::Class > klass) {
 												
-
+        //如果不是编译虚拟机的话，则先尝试找到该类经dex2oat编译得到的OatClass信息
+        /*  bool has_oat_class = false;
+            OatFile::OatClass oat_class = FindOatClass(dex_file, klass->GetDexClassDefIndex(),  & has_oat_class);
+            if (has_oat_class) {
+                LoadClassMembers(self, dex_file, class_data, klass,  & oat_class);
+            }
+            if (!has_oat_class) {
+                LoadClassMembers(self, dex_file, class_data, klass, nullptr);
+            }
+        */
 		//LoadClassMembers(self, dex_file, class_data, klass, nullptr);
 		void ClassLinker::LoadClassMembers(Thread * self,
                                             const DexFile & dex_file,
@@ -412,7 +421,7 @@ mirror::Class* ClassLinker::DefineClass(Thread* self,
 			for (size_t i = 0; it.HasNextDirectMethod(); i++, it.Next()) {
 				LoadMethod(self, dex_file, it, klass, method);
 				//注意，oat_class 信息只在 LinkCode 中用到。LinkCode 留待10.1节介绍
-                //【10.1.1】
+                //【10.1.1】//注意，oat_class 信息只在LinkCode中用到。LinkCode留待10.1节介绍
 				LinkCode(method, oat_class, class_def_method_index);
 			}
 			
@@ -421,7 +430,7 @@ mirror::Class* ClassLinker::DefineClass(Thread* self,
 			for (size_t i = 0; it.HasNextVirtualMethod(); i++, it.Next()) {
 				//和direct方法处理一样，唯一不同的是，此处不调用ArtMethod的 SetMethodIndex 函数，即不设置它的 method_index_ 成员
 				LoadMethod(self, dex_file, it, klass, method);
-                //【10.1.1】
+                //【10.1.1】 //注意，oat_class 信息只在LinkCode中用到。LinkCode留待10.1节介绍
 				LinkCode(method, oat_class, class_def_method_index);
 			}
 											
@@ -736,8 +745,9 @@ private static Object openDexFile(String sourceName, String outputName,
                             int status = ExecAndReturnCode(arg_vector, error_msg){
                                 pid_t pid = fork();  //创建子进程执行dexoat
                                 if (pid == 0) {
+                                    //http://aospxref.com/android-8.1.0_r81/xref/external/clang/tools/scan-build-py/libear/ear.c#161
                                     execv(program, &args[0]);
-                                    //or 
+                                    //or http://aospxref.com/android-8.1.0_r81/xref/external/clang/tools/scan-build-py/libear/ear.c#161
                                     execve(program, &args[0], envp);
                                 }
                             }

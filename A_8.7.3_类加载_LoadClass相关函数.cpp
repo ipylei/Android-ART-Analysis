@@ -82,6 +82,8 @@ void ClassLinker::LoadClassMembers(Thread * self,
         //设置Class类的 sfields_ 和 ifields_成员变量
         klass->SetSFieldsPtr(sfields);
         klass->SetIFieldsPtr(ifields);
+        
+        
         /*设置Class类的 methods_ 成员变量。读者可回顾笔者对该成员变量的解释，
 			它是一个 LengthPrefixedArray<ArtMethod> 数组，其元素布局为
 			（1）[0,virtual_methods_offset_)为本类包含的 direct 成员函数
@@ -98,9 +100,7 @@ void ClassLinker::LoadClassMembers(Thread * self,
 				it.NumDirectMethods(), 
 				it.NumVirtualMethods()
 			);
-			
-			
-			
+            
         size_t class_def_method_index = 0;
         uint32_t last_dex_method_index = DexFile::kDexNoIndex;
         size_t last_class_def_method_index = 0;

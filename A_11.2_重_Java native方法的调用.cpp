@@ -75,7 +75,7 @@ DEFINE_FUNCTION art_quick_generic_jni_trampoline {
     subl LITERAL(8), %esp
     pushl %ebp                                //为调用下面的 artQuickGenericJniTrampoline 函数准备参数
     pushl %fs:THREAD_SELF_OFFSET              //获取代表当前调用线程的Thread对象
-    call SYMBOL(artQuickGenericJniTrampoline) //调用artQuickGenericJniTrampoline函数。
+    call SYMBOL(artQuickGenericJniTrampoline) //调用 artQuickGenericJniTrampoline 函数。
     
     //artQuickGenericJniTrampoline 函数返回值通过EAX和EDX两个寄存器返回
     //如果EAX的值为0，则表示有异常发生
@@ -87,7 +87,7 @@ DEFINE_FUNCTION art_quick_generic_jni_trampoline {
     movl %edx, %esp
     call *%eax //【* 重点】调用Native函数
     
-    //下面的指令将为调用artQuickGenericJniEndTrampoline函数做准备
+    //下面的指令将为调用 artQuickGenericJniEndTrampoline 函数做准备
     subl LITERAL(20), %esp
     fstpl (%esp)
     pushl %edx
@@ -155,6 +155,7 @@ extern "C" TwoWordReturn artQuickGenericJniTrampoline(Thread* self, ArtMethod** 
     //下面这两行代码的含义是将cookie的值存储到栈上。注意，此时sp的取值不再是本函数进来时所传递的值。
     uint32_t* sp32 = reinterpret_cast<uint32_t*>(sp);
     *(sp32 - 1) = cookie; //注意cookie所存储的位置。
+
 
     /*获取ArtMethod对象的【JNI机器码】入口。如果机器码入口地址为 art_jni_dlsym_lookup_stub，
       则说明该Java native方法还未和目标Native函数绑定。这时将调用 artFindNativeMethod 函数来查找目标Native函数。 
