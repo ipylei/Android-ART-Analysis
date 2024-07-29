@@ -35,8 +35,10 @@ public static void ActivityThread::main(String[] args) {
     Looper.prepareMainLooper();
 
     ActivityThread thread = new ActivityThread();
+    //调用 attach 方法完成初始化
     thread.attach(false);
-
+    
+    //进入消息循环，直到进程退出
     Looper.loop();
 
     throw new RuntimeException("Main thread loop unexpectedly exited");
@@ -213,7 +215,6 @@ private void ActivityThread::sendMessage(int what, Object obj) {
     sendMessage(what, obj, 0, 0, false);
 }
 
-
 //http://androidxref.com/4.4.3_r1.1/xref/frameworks/base/core/java/android/app/ActivityThread.java
 private void ActivityThread::sendMessage(int what, Object obj, int arg1, int arg2, boolean async) {
     Message msg = Message.obtain();
@@ -227,39 +228,6 @@ private void ActivityThread::sendMessage(int what, Object obj, int arg1, int arg
     // mH对象发送消息
     mH.sendMessage(msg);  //final H mH = new H();
 }
-
-
-//（内部类 ：基于消息队列）
-//ActivityThread的内部类 H
-//http://androidxref.com/4.4.3_r1.1/xref/frameworks/base/core/java/android/app/ActivityThread.java
-private class H extends Handler {
-    public static final int BIND_APPLICATION        = 110
-    public void handleMessage(Message msg) {
-        switch (msg.what) {
-            case LAUNCH_ACTIVITY: {
-                Trace.traceBegin(Trace.TRACE_TAG_ACTIVITY_MANAGER, "activityStart");
-                ActivityClientRecord r = (ActivityClientRecord)msg.obj;
-
-                r.packageInfo = getPackageInfoNoCheck(r.activityInfo.applicationInfo, r.compatInfo);
-                handleLaunchActivity(r, null);
-                Trace.traceEnd(Trace.TRACE_TAG_ACTIVITY_MANAGER);
-            } break;  
-            
-            ......
-            //【*】
-            case BIND_APPLICATION:
-                Trace.traceBegin(Trace.TRACE_TAG_ACTIVITY_MANAGER, "bindApplication");
-                AppBindData data = (AppBindData)msg.obj;
-                
-                //[*]调用 ActivityThread::handleBindApplication() 处理传递过来的data对象数据
-                handleBindApplication(data);
-                Trace.traceEnd(Trace.TRACE_TAG_ACTIVITY_MANAGER);
-                break;
-            ......
-        }
-    }
-}
-
 //（拓展：消息队列 -> 最终会走到 H::handleMessage(Message msg) --> 然后继续）
 //http://androidxref.com/4.4.3_r1.1/xref/frameworks/base/core/java/android/os/Handler.java
 public final boolean Handler::sendMessage(Message msg){
@@ -300,6 +268,39 @@ public void Handler::dispatchMessage(Message msg) {
         handleMessage(msg);
     }
 }
+
+
+//（内部类 ：基于消息队列）
+//ActivityThread的内部类 H
+//http://androidxref.com/4.4.3_r1.1/xref/frameworks/base/core/java/android/app/ActivityThread.java
+private class H extends Handler {
+    public static final int BIND_APPLICATION        = 110
+    public void handleMessage(Message msg) {
+        switch (msg.what) {
+            case LAUNCH_ACTIVITY: {
+                Trace.traceBegin(Trace.TRACE_TAG_ACTIVITY_MANAGER, "activityStart");
+                ActivityClientRecord r = (ActivityClientRecord)msg.obj;
+
+                r.packageInfo = getPackageInfoNoCheck(r.activityInfo.applicationInfo, r.compatInfo);
+                handleLaunchActivity(r, null);
+                Trace.traceEnd(Trace.TRACE_TAG_ACTIVITY_MANAGER);
+            } break;  
+            
+            ......
+            //【*】
+            case BIND_APPLICATION:
+                Trace.traceBegin(Trace.TRACE_TAG_ACTIVITY_MANAGER, "bindApplication");
+                AppBindData data = (AppBindData)msg.obj;
+                
+                //[*]调用 ActivityThread::handleBindApplication() 处理传递过来的data对象数据
+                handleBindApplication(data);
+                Trace.traceEnd(Trace.TRACE_TAG_ACTIVITY_MANAGER);
+                break;
+            ......
+        }
+    }
+}
+
 
 /* 【终于又回归主线了！】
     创建LoadedApk对象
