@@ -115,6 +115,11 @@ JNI方法
     无机器码：机器码入口设置为(art_quick_generic_jni_trampoline 即通用蹦床)
                     1.bl artQuickGenericJniTrampoline(寻找并返回Native层函数地址，同时未注册的情况下还进行注册)
                     2.执行【Native层函数】
+                    
+                => jni机器码入口
+                  > 已注册：为 Native 层函数
+                  > 未注册：为 art_jni_dlsym_lookup_stub (但没机会执行！)
+                    
     
     【所以】：
         有机器码：机器码入口 -> JNI机器码入口 -> Native层函数地址

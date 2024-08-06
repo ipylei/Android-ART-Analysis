@@ -72,7 +72,7 @@ struct proto_id_item{
     //(类型)    (具体描述)返回值类型
     uint return_type_idx;    //指向 type_ids 的索引，即对应 type_id_item
     //(多类型2) (具体描述)参数类型
-    uint parameters_off;     //不为0，存储 type_list 的结构，用于描述函数参数的类型。
+    uint parameters_off;     //如果不为0，则文件对应的地方存储 type_list 的结构，用于描述函数参数的类型。
 }
 
 //数组，存放多个参数(类型)
@@ -95,9 +95,9 @@ struct class_def{
     uint superclass_idx;     //指向type_ids，代表基类类型，如果没有基类则取值为NO_INDEX（值为-1）
     
     uint interfaces_off;     //如果本类实现了某些接口，则 interfaces_off 指向文件对应位置，
-                             //那里存储了一个 type_list。该type_list的list数组存储了每一个接口类的type_idx索引
+                             //那里存储了一个 type_list。该 type_list 的list数组存储了每一个接口类的 type_idx 索引
     
-    uint source_file_idx;    //指向string_ids，该类对应的源文件名
+    uint source_file_idx;    //指向string_ids，该类对应的源文件名(xxx.java)
     uint annotations_off;    //存储和注解有关的信息
     
     uint class_data_off;     //指向文件对应位置，那里将存储更细节的信息，由 class_data_item 类型来描述
@@ -170,9 +170,9 @@ stuct code_item{
     
     //· tries_size 和 tries 数组：如果该函数内部有try语句块，则tries_size和tries数组用于描述try语句块相关的信息。
     //注意，tries 数组是可选项，如果 tries_size 为 0，则此code_item不包含tries数组。
-    [*]ushort tries_size;                 //①
+    [*]ushort tries_size;              //①
     [*]try_item[] tries;               //①
-    [*]ushort padding;                 //① 用于将tries数组（如果有，并且insns_size是奇数长度的话）进行4字节对齐。
+    [*]ushort padding;                 //① 用于将tries数组（如果有，并且 insns_size 是奇数长度的话）进行4字节对齐。
     [*]encode_catch_handler_list handlers; //catch语句对应的内容，也是可选项。如果 tries_size 不为零才有 handlers 域。
     
     uint debug_info_off;

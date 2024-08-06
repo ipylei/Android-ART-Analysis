@@ -278,9 +278,9 @@ class Class: public Object {
 	但代码中并不存在这样的数据类型。
     实际上，下面这个隐含成员变量的声明可用 ArtMethod* embedded_imtable_[0]来表示  
 	【解释】
-	embedded_imtable_作用很明确，它只存储这个类所有 virtual 方法里那些属于接口的方法。
-    显然，embedded_imtable_提供了类似快查表那样的功能。当调用某个接口方法时，可以先到embedded_imtable_里搜索该方法是否存在。
-    由于embedded_imtable_只能存64个元素，编译时可扩大它的容量，但这会增加Class类所占据的内存。
+	embedded_imtable_ 作用很明确，它只存储这个类所有 virtual 方法里那些属于接口的方法。
+    显然，embedded_imtable_ 提供了类似快查表那样的功能。当调用某个接口方法时，可以先到embedded_imtable_里搜索该方法是否存在。
+    由于embedded_imtable_ 只能存64个元素，编译时可扩大它的容量，但这会增加Class类所占据的内存。
 	*/
     //ImTableEntry embedded_imtable_[0];
     

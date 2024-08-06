@@ -381,15 +381,20 @@ mirror::Class* ClassLinker::DefineClass(Thread* self,
 								const DexFile::ClassDef & dex_class_def,
 								Handle < mirror::Class > klass) {
 												
-        //如果不是编译虚拟机的话，则先尝试找到该类经dex2oat编译得到的OatClass信息
+        
         /*  bool has_oat_class = false;
+        //如果不是编译虚拟机的话，则先尝试找到该类经dex2oat编译得到的OatClass信息
+        if (Runtime::Current()->IsStarted() && !Runtime::Current()->IsAotCompiler()) {
             OatFile::OatClass oat_class = FindOatClass(dex_file, klass->GetDexClassDefIndex(),  & has_oat_class);
             if (has_oat_class) {
                 LoadClassMembers(self, dex_file, class_data, klass,  & oat_class);
             }
-            if (!has_oat_class) {
-                LoadClassMembers(self, dex_file, class_data, klass, nullptr);
-            }
+        }
+
+        //不管有没有OatClass信息，最终调用的函数都是 LoadClassMembers。
+        if (!has_oat_class) {
+            LoadClassMembers(self, dex_file, class_data, klass, nullptr);
+        }
         */
 		//LoadClassMembers(self, dex_file, class_data, klass, nullptr);
 		void ClassLinker::LoadClassMembers(Thread * self,
@@ -1143,6 +1148,10 @@ JNI方法
     无机器码：机器码入口设置为(art_quick_generic_jni_trampoline 即通用蹦床)
                     1.bl artQuickGenericJniTrampoline(寻找并返回Native层函数地址，同时未注册的情况下还进行注册)
                     2.执行【Native层函数】
+                    
+                => jni机器码入口
+                  > 已注册：为 Native 层函数
+                  > 未注册：为 art_jni_dlsym_lookup_stub (但没机会执行！)
     
     【所以】：
         有机器码：机器码入口 -> JNI机器码入口 -> Native层函数地址

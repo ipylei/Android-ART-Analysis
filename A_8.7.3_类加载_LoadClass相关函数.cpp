@@ -12,8 +12,8 @@ void ClassLinker::LoadClass(Thread * self,
     }
 
     bool has_oat_class = false;
+    //如果不是编译虚拟机的话，则先尝试找到该类经dex2oat编译得到的OatClass信息
     if (Runtime::Current()->IsStarted() && !Runtime::Current()->IsAotCompiler()) {
-        //如果不是编译虚拟机的话，则先尝试找到该类经dex2oat编译得到的OatClass信息
         OatFile::OatClass oat_class = FindOatClass(dex_file, klass->GetDexClassDefIndex(),  & has_oat_class);
         if (has_oat_class) {
             LoadClassMembers(self, dex_file, class_data, klass,  & oat_class);

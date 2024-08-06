@@ -147,8 +147,8 @@ bool JavaVMExt::LoadNativeLibrary(JNIEnv* env,
     const char* path_str = path.empty() ? nullptr : path.c_str();
     
     /*加载动态库，Linux平台上就是使用dlopen方式加载。但Android系统做了相关定制，主要是出于
-      安全方面的考虑。比如，一个应用不能加载另外一个应用携带的动态库。下面这个函数请读者自行阅
-      读。总之，OpenNativeLibrary 成功返回后，handle 代表目标动态库的句柄。
+      安全方面的考虑。比如，一个应用不能加载另外一个应用携带的动态库。下面这个函数请读者自行阅读。
+      总之，OpenNativeLibrary 成功返回后，handle 代表目标动态库的句柄。
     */
     //【*】 Android 4.4 中这里是 dlopen
     void* handle = android::OpenNativeLibrary(env, runtime_->GetTargetSdkVersion(), path_str, class_loader, library_path);
