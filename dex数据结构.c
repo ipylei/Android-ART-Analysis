@@ -17,7 +17,7 @@ class_defs       数组，元素类型为 class_def，存储类的信息
 //-----------------------------------------------------------
 data             Dex文件重要的数据内容都存在data区域里
 link_data        理论上是预留区域，没有特别的作用
-
+//http://aospxref.com/android-7.0.0_r7/xref/art/runtime/dex_file.h
 
 //字符串 - 项
 struct string_data_item{

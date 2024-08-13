@@ -407,7 +407,7 @@ void ArtInterpreterToInterpreterBridge(Thread* self,
         }
     }
     
-    //如果不是JNI方法，则调用 Execute 执行该方法。Execute函数我们在【10.2.3】节介绍过它了。
+    //【*】如果不是JNI方法，则调用 Execute 执行该方法。Execute函数我们在【10.2.3】节介绍过它了。
     if (LIKELY(!shadow_frame->GetMethod()->IsNative())) {
         result->SetJ(Execute(self, code_item, *shadow_frame, JValue()).GetJ());
     } 
