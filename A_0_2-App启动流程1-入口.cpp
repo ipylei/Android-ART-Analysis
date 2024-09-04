@@ -1,7 +1,7 @@
 【3.3】 APP启动流程
 /*当用户点击桌面上一个APP图标时，这个APP的启动流程大致如下：
 (1)点击APP图标，产生Click Event事件；
-(2)Launcher 程序接收到Click Event事件，调用startActivity(Intent)，通过Binder IPC机制调用ActivityManager Service的服务；
+(2)Launcher 程序接收到Click Event事件，调用startActivity(Intent)，通过Binder IPC机制调用 ActivityManagerService 的服务；
 (3)ActivityManagerService 会调用 startProcessLocked 方法来创建新的进程；
 (4)startProcessLocked 方法调用Process类的静态成员函数start与 打开socket与zygote进程进行通信，
     并指定APP进程的入口函数为android.app.ActivityThread 类的静态成员函数main；
@@ -326,7 +326,7 @@ private void ActivityThread::handleBindApplication(AppBindData data) {
         2.创建 Application 对象; 
             >在makeApplication函数中调用了newApplication，
              >在newApplication函数中又调用了app.attach(context)，
-              >在attach函数中调用了Application.attachBaseContext()函数
+              >在attach函数中调用了 Application.attachBaseContext()函数
     */
     //http://androidxref.com/4.4.3_r1.1/xref/frameworks/base/core/java/android/app/LoadedApk.java
     Application app = data.info.makeApplication(data.restrictedBackupMode, null){

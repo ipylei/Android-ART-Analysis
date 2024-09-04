@@ -87,8 +87,7 @@ int main(int argc, const char * const argv[]){
                 
                 //4.p73 有求必应之等待请求
                 //(使用1注册的用于IPC的sockct)
-                runSelectLoopMode(){
-                    
+                runSelectLoopMode(){                    
                     
                     if (index < 0) {
                         throw new RuntimeException("Error in select()");

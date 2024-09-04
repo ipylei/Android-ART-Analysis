@@ -13,18 +13,18 @@ JavaVMExt::JavaVMExt(Runtime* runtime, const RuntimeArgumentMap& runtime_options
         
         ...... {
             
-        /*functions是JavaVMExt基类JavaVM第一个成员变量，类型为JNIInvokeInterface*，
-        而unchecked_functions_是JavaVMExt的成员变量，数据类型也是JNIInvokeInterface*。
+        /* functions 是JavaVMExt基类JavaVM第一个成员变量，类型为JNIInvokeInterface*，
+        而 unchecked_functions_ 是JavaVMExt的成员变量，数据类型也是JNIInvokeInterface*。
         
         二者的作用略有区别。
          （1）如果不启用jni检查的话，他们指向同一个JNIInvokeInterface对象。
          （2）如果启用jni检查的话，这两个成员变量将指向不同的JNIInvokeInterface对象。
-         其中，unchecked_functions_代表无需jni检查的对象，
-         而functions_代表需要jni检查的对象。
+         其中，unchecked_functions_ 代表无需jni检查的对象，
+         而 functions_ 代表需要jni检查的对象。
          
-        当functions_做完jni检查完后，它会调用unchecked_functions_对应的函数。
-         不过，此时这两个成员变量初始都会指向一个全局的JNIInovkeInterface对象，
-         即上面初始化列表中的gJniInvokeInterface  */
+        当functions_做完jni检查完后，它会调用 unchecked_functions_ 对应的函数。
+         不过，此时这两个成员变量初始都会指向一个全局的 JNIInovkeInterface 对象，
+         即上面初始化列表中的 gJniInvokeInterface  */
         functions = unchecked_functions_;
     
         //判断是否启用checkJni功能

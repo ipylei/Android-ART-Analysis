@@ -9,12 +9,14 @@
 
 //0.zygote进程创建 
 //-> 1    app启动(进程创建) 
+
 //-> 2.1 .dex的加载流程[等价于classLoader创建过程，很多壳都是通过 DexClassLoader 加载]
 //-> 2.2 .so的加载流程[linker相关]
 
 //-> 3   dex2oat流程
 //-> 4   classloader.loadClass();
-
+//-> 5   函数调用流程：ArtMethod::Invoke();
+     
 
 //【7.1 art虚拟机创建、启动流程】
 //注：其实就是 zygote 进程启动所执行的流程，然后该进程里就有了art虚拟机环境，
